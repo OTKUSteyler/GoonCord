@@ -7,9 +7,9 @@ Idea taken from Rosiecord
 
 ### Android
 
-- Rooted: [Shiggy Xposed](https://github.com/OTKUSteyler/GoonXposed)
+- Rooted: [Goon Xposed](https://github.com/OTKUSteyler/GoonXposed)
 
-- Non-Rooted: [Shiggy Manger](https://github.com/OTKUSteyler/GoonManager)
+- Non-Rooted: [Goon Manger](https://github.com/OTKUSteyler/GoonManager)
 
 ### Android/iOS
 - **Injecting bundle:** ``https://github.com/kmmiio99o/ShiggyCord/releases/download/<VERSION>/shiggycord.js``
