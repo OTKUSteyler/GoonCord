@@ -8,7 +8,7 @@ import { messageUtil } from "@metro/common";
 
 export default () =>
   <ApplicationCommand>{
-    name: "debug",
+    name: "Goon",
     description: Strings.COMMAND_DEBUG_DESC,
     options: [
       {
