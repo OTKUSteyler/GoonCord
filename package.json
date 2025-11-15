@@ -1,9 +1,9 @@
 {
-  "name": "ShiggyCord",
+  "name": "GoonCord",
   "private": true,
   "author": {
-    "name": "kmmiio99o",
-    "url": "https://github.com/kmmiio99o"
+    "name": "OTKUSteyler",
+    "url": "https://github.com/OTKUSteyler/GoonCord"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
