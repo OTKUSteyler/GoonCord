@@ -1,6 +1,6 @@
 # GoonCord [![Discord](https://img.shields.io/discord/1427396621905432699?style=social&logo=discord&label=ShiggyCord)](https://discord.gg/nQykFF9Ud6)
 
-An unofficial fork of ShiggyCord, made just for fun
+An unofficial fork of ShiggyGord, made just for fun
 Idea taken from me 
 
 ## Installing
@@ -18,7 +18,7 @@ Idea taken from me
   ```
 
 ## Building
-1. Install a ShiggyCord loader with loader config support (any mentioned in the [Installing](#installing) section).
+1. Install a GoonCord loader with loader config support (any mentioned in the [Installing](#installing) section).
 1. Go to Settings > General and enable Developer Settings.
 1. Clone the repo:
     ```
@@ -28,7 +28,7 @@ Idea taken from me
     ```
     bun i
     ```
-1. Build ShiggyCord's code:
+1. Build GoonCord's code:
     ```
     bun run build
     ```
