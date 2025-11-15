@@ -22,7 +22,7 @@ Idea taken from me
 1. Go to Settings > General and enable Developer Settings.
 1. Clone the repo:
     ```
-    git clone https://github.com/kmmiio99o/Shiggycord.git
+    git clone https://github.com/OTKUSteyler/GoonCord.git
     ```
 1. Install dependencies:
     ```
