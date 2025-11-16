@@ -9,10 +9,9 @@ interface CorePlugin {
 export const getCorePlugins = (): Record<string, CorePlugin> => ({
   "bunny.quickinstall": { ...require("./quickinstall"), preenabled: true },
   "bunny.badges": require("./badges"),
-  "bunny.notrack": { ...require("./notrack"), preenabled: true },
-  "bunny.messagefix": { ...require("./messagefix") },
-  "bunny.fixembed": { ...require("./fixembed"), preenabled: true },
-  "bunny.enhancements": { ...require("./shiggyenhancements"),}
+  "bunny.notrack": require("./notrack"),
+  "bunny.messagefix": require("./messagefix"),
+  "bunny.fixembed": require("./fixembed"),
 });
 
 /**

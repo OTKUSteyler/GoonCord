@@ -3,9 +3,7 @@ import initFixes from "@core/fixes";
 import { initFetchI18nStrings } from "@core/i18n";
 import initSettings from "@core/ui/settings";
 import { initVendettaObject } from "@core/vendetta/api";
-import { VdPluginManager } from "@core/vendetta/plugins";
 import { updateFonts } from "@lib/addons/fonts";
-import { initPlugins, updatePlugins } from "@lib/addons/plugins";
 import { initThemes } from "@lib/addons/themes";
 import { patchCommands } from "@lib/api/commands";
 import { patchLogHook } from "@lib/api/debug";
@@ -40,7 +38,6 @@ export default async () => {
     initFetchI18nStrings(),
     initSettings(),
     initFixes(),
-    // Do NOT run updatePlugins here — that is deferred.
   ];
 
   // Run critical inits and collect unpatchers/cleanup handlers.
@@ -60,6 +57,9 @@ export default async () => {
 
   // Deferred work: run after interactions to avoid blocking initial paint and navigation.
   const runDeferred = async () => {
+    const { VdPluginManager } = await import("@core/vendetta/plugins");
+    const { initPlugins, updatePlugins } = await import("@lib/addons/plugins");
+
     // Initialize Vendetta plugins (may start many plugins) — do not block UI.
     VdPluginManager.initPlugins()
       .then((u) => lib.unload.push(u))
@@ -119,48 +119,6 @@ export default async () => {
     setTimeout(runDeferred, 200);
   }
 
-  // Periodic bundle check: every 3 hours, check GitHub releases (ignore prereleases).
-  // We use the GitHub Releases API to find the latest non-prerelease release and compare its tag.
-  const checkBundle = async () => {
-    try {
-      const debugInfo = getDebugInfo();
-      const releasesRes = await fetch(
-        "https://api.github.com/repos/kmmiio99o/ShiggyCord/releases",
-        { cache: "no-store" },
-      );
-      if (!releasesRes.ok) return;
-      const releases = await releasesRes.json();
-      if (!Array.isArray(releases) || releases.length === 0) return;
-
-      // Find first non-prerelease, non-draft release
-      const stable = releases.find((r: any) => !r.prerelease && !r.draft);
-      if (!stable) return;
-
-      const latestTag = stable.tag_name ?? stable.name ?? null;
-      const latestUrl = stable.html_url ?? null;
-      const installed = debugInfo?.bunny?.version ?? null;
-
-      updaterSettings.lastBundleChecked = new Date().toISOString();
-      updaterSettings.lastBundleVersion = latestTag;
-      updaterSettings.bundleLatestTag = latestTag;
-      updaterSettings.bundleLatestUrl = latestUrl ?? null;
-      updaterSettings.bundleAvailable =
-        latestTag != null &&
-        installed != null &&
-        String(latestTag).replace(/^v/, "") !==
-          String(installed).replace(/^v/, "");
-    } catch (err) {
-      logger.log("Bundle check failed:", err);
-    }
-  };
-
-  // Run initial bundle check after a short delay (1 minute) to avoid doing network work
-  // during the critical UI startup path, then run every 3 hours.
-  setTimeout(() => {
-    checkBundle().catch(() => {});
-  }, 60 * 1000);
-  setInterval(checkBundle, 3 * 60 * 60 * 1000);
-
   // Final ready log for basic UI availability.
-  logger.log("ShiggyCord is ready (UI available).");
+  logger.log("ShiggyCord is ready.");
 };
