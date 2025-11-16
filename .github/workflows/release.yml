@@ -154,7 +154,7 @@ jobs:
           name: Release ${{ steps.prepare.outputs.tag }}
           prerelease: ${{ steps.prepare.outputs.prerelease }}
           files: |
-            dist/shiggycord.js
-            dist/shiggycord.min.js
+            dist/gooncord.js
+            dist/gooncord.min.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
