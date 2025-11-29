@@ -120,5 +120,5 @@ export default async () => {
   }
 
   // Final ready log for basic UI availability.
-  logger.log("ShiggyCord is ready.");
+  logger.log("GoonCord is ready.");
 };
