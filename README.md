@@ -12,7 +12,10 @@ Idea taken from me
 - Non-Rooted: [Goon Manger](https://github.com/OTKUSteyler/GoonManager)
 
 ### Android/iOS
-- **Injecting bundle:** ``https://github.com/kmmiio99o/ShiggyCord/releases/download/<VERSION>/shiggycord.js``
+- **Injecting bundle:**
+  ```url
+  https://github.com/kmmiio99o/ShiggyCord/releases/latest/download/shiggycord.js
+  ```
 
 ## Building
 1. Install a GoonCord loader with loader config support (any mentioned in the [Installing](#installing) section).

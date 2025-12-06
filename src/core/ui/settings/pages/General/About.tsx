@@ -64,16 +64,20 @@ export default function About() {
           },
         ]
       : []),
-    {
-      label: "Device",
-      version: `${debugInfo.device.brand} ${debugInfo.device.model}`,
-      icon: "MobilePhoneIcon",
-    },
-    {
-      label: Strings.MANUFACTURER,
-      version: debugInfo.device.manufacturer,
-      icon: "WrenchIcon",
-    },
+    ...(Platform.OS !== "ios"
+      ? [
+          {
+            label: "Device",
+            version: `${debugInfo.device.brand} ${debugInfo.device.model}`,
+            icon: "MobilePhoneIcon",
+          },
+          {
+            label: Strings.MANUFACTURER,
+            version: debugInfo.device.manufacturer,
+            icon: "WrenchIcon",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -93,7 +97,7 @@ export default function About() {
             variant="text-md/medium"
             style={{ textAlign: "center", marginTop: 4 }}
           >
-            Goon your discord client!
+            Jolly your discord client!
           </Text>
         </View>
 
