@@ -30,7 +30,7 @@ let context = null;
 const config = {
   entryPoints: ["src/entry.ts"],
   bundle: true,
-  outfile: "dist/gooncord.js",
+  outfile: "dist/shiggycord.js",
   format: "iife",
   splitting: false,
   // Enable minification by default for release builds (when a release-branch is provided).
