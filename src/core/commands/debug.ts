@@ -8,7 +8,7 @@ import { messageUtil } from "@metro/common";
 
 export default () =>
   <ApplicationCommand>{
-    name: "debug",
+    name: "Goon",
     description: Strings.COMMAND_DEBUG_DESC,
     options: [
       {
@@ -20,8 +20,8 @@ export default () =>
     execute([ephemeral], ctx) {
       const info = getDebugInfo();
       const content = [
-        "**ShiggyCord Debug Info**",
-        `> ShiggyCord: ${info.bunny.version} (${info.bunny.loader.name} ${info.bunny.loader.version})`,
+        "**💦GoonCord💦 Debug Info**",
+        `> GoonCord: ${info.bunny.version} (${info.bunny.loader.name} ${info.bunny.loader.version})`,
         `> Discord: ${info.discord.version} (${info.discord.build})`,
         `> React: ${info.react.version} (RN ${info.react.nativeVersion})`,
         `> Hermes: ${info.hermes.version} (bcv${info.hermes.bytecodeVersion})`,
