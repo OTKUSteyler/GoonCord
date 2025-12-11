@@ -110,7 +110,7 @@ jobs:
           tag_name: ${{ steps.release_info.outputs.release_tag }}
           name: ${{ steps.release_info.outputs.release_name }}
           files: |
-            dist/shiggycord.js
-            dist/shiggycord.min.js
+            dist/gooncord.js
+            dist/gooncord.min.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
