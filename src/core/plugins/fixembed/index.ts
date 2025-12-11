@@ -42,7 +42,7 @@ function transformLinks(content: string, config: FixEmbedSettings): string {
   if (config.instagram) {
     result = result.replace(
       /https?:\/\/(?:www\.)?instagram\.com(\/[^\s]+)/gi,
-      "https://uuinstagram.com$1",
+      "https://kkinstagram.com$1",
     );
   }
   // TikTok: Replace domain, keep path
