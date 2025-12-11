@@ -57,15 +57,15 @@ export function patchPanelUI(unpatches: (() => void | boolean)[]) {
       after("default", findByNameLazy("getScreens", false), (_a, screens) => ({
         ...screens,
         VendettaCustomPage: {
-          title: "ShiggyCord",
+          title: "GoonCord",
           render: () => <CustomPageRenderer />,
         },
         BUNNY_CUSTOM_PAGE: {
-          title: "ShiggyCord",
+          title: "GoonCord",
           render: () => <CustomPageRenderer />,
         },
         SHIGGYCORD_CUSTOM_PAGE: {
-          title: "ShiggyCord",
+          title: "GoonCord",
           render: () => <CustomPageRenderer />,
         },
       })),
