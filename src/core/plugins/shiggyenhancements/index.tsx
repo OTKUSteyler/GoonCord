@@ -29,7 +29,7 @@ declare module "@lib/api/settings" {
 }
 
 const soundUrl =
-  "https://github.com/kmmiio99o/kmmiio99o.github.io/raw/refs/heads/main/music/shiggycord.mp3";
+  "https://github.com/OTKUSteyler/GoonCord/raw/refs/heads/main/Stuff/All%20I%20Want%20For%20Christmas%20(Is%20Fark).mp3";
 const soundId = 6971;
 let soundDuration = -1;
 let timeoutId: NodeJS.Timeout | null = null;
@@ -110,7 +110,7 @@ export default defineCorePlugin({
       name: "Goon Enhancements",
       description:
         "Fixes common discord bugs because discord wont, and adds some features. (Originally Kettu Enhancements)",
-      authors: [{ name: "cocobo1" }, { name: "Shiggy Team" }], {name:"Goon Team"],
+      authors: [{ name: "cocobo1" }, { name: "Shiggy Team" }], { name:"btmc727"],
     },
   },
 
