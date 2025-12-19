@@ -107,10 +107,10 @@ export default defineCorePlugin({
     spec: 3,
     main: "",
     display: {
-      name: "Shiggy Enhancements",
+      name: "Goon Enhancements",
       description:
         "Fixes common discord bugs because discord wont, and adds some features. (Originally Kettu Enhancements)",
-      authors: [{ name: "cocobo1" }, { name: "Shiggy Team" }],
+      authors: [{ name: "cocobo1" }, { name: "Shiggy Team" }], {name:"Goon Team"],
     },
   },
 
@@ -218,7 +218,7 @@ export default defineCorePlugin({
         React.createElement(TableRow, {
           label: "Description",
           subLabel:
-            "Shiggy Enhancements, more options, more features. Originally Kettu Enhancements with additinal features.",
+            "Goon Enhancements, more options, more features. Originally Kettu Enhancements with additinal features.",
           disabled: true,
         }),
       ),
@@ -236,7 +236,7 @@ export default defineCorePlugin({
   },
 
   start() {
-    logger.log("Shiggy Enhancements: Starting plugin");
+    logger.log("Goon Enhancements: Starting plugin");
 
     // Initialize sound settings
     settings.startupSound = settings.startupSound || {
@@ -282,7 +282,7 @@ export default defineCorePlugin({
   },
 
   stop() {
-    logger.log("Shiggy Enhancements: Stopping plugin");
+    logger.log("Goon Enhancements: Stopping plugin");
 
     // Stop and cleanup audio
     if (DCDSoundManager && isPlaying) {
