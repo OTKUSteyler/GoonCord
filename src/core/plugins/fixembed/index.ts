@@ -35,7 +35,7 @@ function transformLinks(content: string, config: FixEmbedSettings): string {
   if (config.twitter) {
     result = result.replace(
       /https?:\/\/(?:www\.)?(twitter\.com|x\.com)(\/[^\s]+)/gi,
-      "https://fxupx.com$2",
+      "https://fxtwitter.com$2",
     );
   }
   // Instagram: Replace domain, keep path
