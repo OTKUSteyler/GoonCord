@@ -30,7 +30,7 @@ let context = null;
 const config = {
   entryPoints: ["src/entry.ts"],
   bundle: true,
-  outfile: "dist/shiggycord.js",
+  outfile: "dist/gooncord.js",
   format: "iife",
   splitting: false,
   // Enable minification by default for release builds (when a release-branch is provided).
@@ -75,7 +75,7 @@ const config = {
                 constModules: {
                   globals: {
                     "bunny-build-info": {
-                      version: `"Jolly 1.4"`,
+                      version: `"1.1.11"`,
                     },
                   },
                 },
