@@ -11,7 +11,7 @@ export { shiggycordIcon };
 
 export default function initSettings() {
   registerSection({
-    name: "ShiggyCord",
+    name: "💦GoonCord💦",
     items: [
       {
         key: "SHIGGYCORD",
