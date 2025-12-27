@@ -44,7 +44,7 @@ const useStyles = createStyles({
   },
   headerLabel: {
     ...TextStyleSheet["heading-md/semibold"],
-    color: semanticColors.HEADER_PRIMARY,
+    color: semanticColors.MOBILE_TEXT_HEADING_PRIMARY,
   },
   headerSubtitle: {
     ...TextStyleSheet["text-md/semibold"],
@@ -60,7 +60,7 @@ const useStyles = createStyles({
     gap: 5,
   },
   iconStyle: {
-    tintColor: semanticColors.LOGO_PRIMARY,
+    tintColor: semanticColors.INTERACTIVE_ICON_DEFAULT,
     opacity: 0.2,
     height: 64,
     width: 64,

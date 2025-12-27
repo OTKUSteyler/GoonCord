@@ -195,7 +195,7 @@ export default function PluginInfoActionSheet({
             label="Configure"
             variant="secondary"
             disabled={!plugin.getPluginSettingsComponent()}
-            icon={findAssetId("WrenchIcon")}
+            icon={findAssetId("SettingsIcon")}
             onPress={() => {
               navigation.push("SHIGGYCORD_CUSTOM_PAGE", {
                 title: plugin.name,
@@ -236,7 +236,7 @@ export default function PluginInfoActionSheet({
             variant="text-md/semibold"
             style={{
               marginBottom: 4,
-              color: semanticColors.HEADER_PRIMARY,
+              color: "text-strong",
             }}
           >
             Description
