@@ -24,7 +24,7 @@ export default function initSettings() {
         key: "CORE_PLUGINS",
         title: () => Strings.PLUGINS,
         icon: findAssetId("ActivitiesIcon"),
-        render: () => import("@core/ui/settings/pages/Plugins/CorePlugins"),
+        render: () => import("@core/ui/settings/pages/Plugins"),
       },
       {
         key: "BUNNY_PLUGINS",
