@@ -30,7 +30,7 @@ let context = null;
 const config = {
   entryPoints: ["src/entry.ts"],
   bundle: true,
-  outfile: "dist/gooncord.js",
+  outfile: "dist/shiggycord.js",
   format: "iife",
   splitting: false,
   // Enable minification by default for release builds (when a release-branch is provided).
@@ -50,7 +50,7 @@ const config = {
     window: "globalThis",
     __DEV__: JSON.stringify(releaseBranch !== "main"),
   },
-  inject: ["./shims/asyncIteratorSymbol.js", "./shims/promiseAllSettled.js"],
+  inject: ["./shims/asyncIteratorSymbol.js", "./shims/promiseAllSettled.js", "./shims/weakref.js"],
   legalComments: "none",
   alias: {
     "!ShiggyCord-deps-shim!": "./shims/depsModule.ts",
@@ -75,7 +75,7 @@ const config = {
                 constModules: {
                   globals: {
                     "bunny-build-info": {
-                      version: `"1.2.11"`,
+                      version: `"1.4.1"`,
                     },
                   },
                 },
