@@ -19,7 +19,7 @@ export function serve(options) {
     if (pathname?.endsWith(".js")) {
       try {
         let fileToServe;
-        if (pathname === "/shiggycord.min.js") {
+        if (pathname === "/gooncord.min.js") {
           const { config, context, timeTook } = await buildBundle({
             minify: true,
           });
@@ -30,7 +30,7 @@ export function serve(options) {
             true,
           );
           fileToServe = config.outfile.replace(/\.js$/, ".min.js");
-        } else if (pathname === "/shiggycord.js") {
+        } else if (pathname === "/gooncord.js") {
           const { config, context, timeTook } = await buildBundle();
           printBuildSuccess(context.hash, args["release-branch"], timeTook);
           fileToServe = config.outfile;
@@ -55,7 +55,7 @@ export function serve(options) {
 
   server.listen(args.port ?? 4040);
 
-  console.info(chalk.bold.yellowBright("Serving ShiggyCord on:"));
+  console.info(chalk.bold.yellowBright("Serving GoonCord on:"));
 
   const netInterfaces = os.networkInterfaces();
   for (const netinterfaces of Object.values(netInterfaces)) {
