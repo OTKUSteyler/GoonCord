@@ -7,6 +7,9 @@ import {
   connectToDebugger,
   disconnectFromDebugger,
   isConnectedToDebugger,
+  connectRdt,
+  disconnectRdt,
+  useIsRdtConnected,
 } from "@lib/api/debug";
 import {
   getReactDevToolsProp,
@@ -33,7 +36,7 @@ import { ErrorBoundary } from "@ui/components";
 import ErrorBoundaryScreen from "@core/ui/reporter/components/ErrorBoundaryScreen";
 import { createStyles, TextStyleSheet } from "@ui/styles";
 import { NativeModules } from "react-native";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView } from "react-native";
 import { showToast } from "@ui/toasts";
 import { useState, useEffect } from "react";
 
@@ -72,6 +75,7 @@ export default function Developer() {
   const [isDebuggerConnected, setIsDebuggerConnected] = useState(
     isConnectedToDebugger(),
   );
+  const isRdtConnected = useIsRdtConnected();
 
   const styles = useStyles();
   const navigation = NavigationNative.useNavigation();
@@ -96,6 +100,18 @@ export default function Developer() {
     }
   };
 
+  const handleReactDevToolsConnect = () => {
+    if (isRdtConnected) {
+      disconnectRdt();
+    } else {
+      if (!settings.devToolsUrl?.trim()) {
+        showToast("Invalid devTools URL!", findAssetId("Small"));
+        return;
+      }
+      connectRdt(settings.devToolsUrl);
+    }
+  };
+
   return (
     <ErrorBoundary>
       <ScrollView
@@ -106,108 +122,90 @@ export default function Developer() {
           style={{ paddingVertical: 24, paddingHorizontal: 12 }}
           spacing={24}
         >
-          <TableRowGroup title={Strings.DEBUGGER_URL}>
-            <TextInput
-              placeholder="127.0.0.1:9090"
-              size="md"
-              leadingIcon={() => (
-                <LegacyFormText style={styles.leadingText}>
-                  ws://
-                </LegacyFormText>
-              )}
-              defaultValue={settings.debuggerUrl}
-              onChange={(v: string) => (settings.debuggerUrl = v)}
-            />
-            <TableSwitchRow
-              label={Strings.AUTO_DEBUGGER}
-              icon={<TableRow.Icon source={findAssetId("copy")} />}
-              value={settings.autoDebugger}
-              onValueChange={(v: boolean) => {
-                settings.autoDebugger = v;
-              }}
-            />
-            <TableRow
-              label={Strings.CONNECT_TO_DEBUG_WEBSOCKET}
-              subLabel="Connect to Chrome DevTools for debugging"
-              icon={<TableRow.Icon source={findAssetId("WrenchIcon")} />}
-              onPress={() => connectToDebugger(settings.debuggerUrl)}
-            />
-          </TableRowGroup>
+          <Stack spacing={4}>
+            <TableRowGroup title={Strings.DEBUGGER_URL}>
+              <Stack spacing={4}>
+                <TextInput
+                  placeholder="127.0.0.1:9090"
+                  size="md"
+                  leadingIcon={() => (
+                    <LegacyFormText style={styles.leadingText}>
+                      ws://
+                    </LegacyFormText>
+                  )}
+                  defaultValue={settings.debuggerUrl}
+                  onChange={(v: string) => (settings.debuggerUrl = v)}
+                />
+              </Stack>
+            </TableRowGroup>
 
-          {isReactDevToolsPreloaded() && (
-            <TableRowGroup title="React Development">
-              <TextInput
-                placeholder="127.0.0.1:8097"
-                size="md"
-                leadingIcon={() => (
-                  <LegacyFormText style={styles.leadingText}>
-                    ws://
-                  </LegacyFormText>
-                )}
-                defaultValue={settings.devToolsUrl}
-                onChange={(v: string) => (settings.devToolsUrl = v)}
-              />
+            <TableRowGroup>
               <TableSwitchRow
-                label={Strings.AUTO_DEVTOOLS}
-                icon={<TableRow.Icon source={findAssetId("ic_badge_staff")} />}
-                value={settings.autoDevTools}
+                label={Strings.AUTO_DEBUGGER}
+                icon={<TableRow.Icon source={findAssetId("copy")} />}
+                value={settings.autoDebugger}
                 onValueChange={(v: boolean) => {
-                  settings.autoDevTools = v;
+                  settings.autoDebugger = v;
                 }}
               />
               <TableRow
-                label={Strings.CONNECT_TO_REACT_DEVTOOLS}
-                subLabel="Connect React DevTools for component debugging"
-                icon={<TableRow.Icon source={findAssetId("ic_badge_staff")} />}
-                onPress={async () => {
-                  if (!settings.devToolsUrl?.trim()) {
-                    showToast("Invalid devTools URL!", findAssetId("Small"));
-                    return;
-                  }
-
-                  try {
-                    const devTools =
-                      window[getReactDevToolsProp() || "__vendetta_rdc"];
-
-                    if (!devTools?.connectToDevTools) {
-                      showToast(
-                        "React DevTools not available",
-                        findAssetId("Small"),
-                      );
-                      return;
-                    }
-
-                    await devTools.connectToDevTools({
-                      host: settings.devToolsUrl.split(":")?.[0],
-                      resolveRNStyle: StyleSheet.flatten,
-                    });
-                    showToast(
-                      "Connected to React DevTools!",
-                      findAssetId("Check"),
-                    );
-                  } catch (error) {
-                    showToast(
-                      "Failed to connect to React DevTools",
-                      findAssetId("Small"),
-                    );
-                  }
-                }}
+                label={Strings.CONNECT_TO_DEBUG_WEBSOCKET}
+                subLabel="Connect DevTools for debugging"
+                icon={<TableRow.Icon source={findAssetId("WrenchIcon")} />}
+                onPress={handleDebuggerConnect}
               />
+            </TableRowGroup>
+          </Stack>
 
-              {isLoaderConfigSupported() && isVendettaLoader() && (
+          {isReactDevToolsPreloaded() && (
+            <Stack spacing={4}>
+              <TableRowGroup title="React Development">
+                <Stack spacing={4}>
+                  <TextInput
+                    placeholder="127.0.0.1:8097"
+                    size="md"
+                    leadingIcon={() => (
+                      <LegacyFormText style={styles.leadingText}>
+                        ws://
+                      </LegacyFormText>
+                    )}
+                    defaultValue={settings.devToolsUrl}
+                    onChange={(v: string) => (settings.devToolsUrl = v)}
+                  />
+                </Stack>
+              </TableRowGroup>
+
+              <TableRowGroup>
                 <TableSwitchRow
-                  label={Strings.LOAD_REACT_DEVTOOLS}
-                  subLabel={`${Strings.VERSION}: ${getReactDevToolsVersion()}`}
-                  icon={
-                    <TableRow.Icon source={findAssetId("ic_badge_staff")} />
-                  }
-                  value={loaderConfig.loadReactDevTools}
+                  label={Strings.AUTO_DEVTOOLS}
+                  icon={<TableRow.Icon source={findAssetId("ic_badge_staff")} />}
+                  value={settings.autoDevTools}
                   onValueChange={(v: boolean) => {
-                    loaderConfig.loadReactDevTools = v;
+                    settings.autoDevTools = v;
                   }}
                 />
-              )}
-            </TableRowGroup>
+                <TableRow
+                  label={Strings.CONNECT_TO_REACT_DEVTOOLS}
+                  subLabel="Connect React DevTools for component debugging"
+                  icon={<TableRow.Icon source={findAssetId("ic_badge_staff")} />}
+                  onPress={handleReactDevToolsConnect}
+                />
+
+                {isLoaderConfigSupported() && isVendettaLoader() && (
+                  <TableSwitchRow
+                    label={Strings.LOAD_REACT_DEVTOOLS}
+                    subLabel={`${Strings.VERSION}: ${getReactDevToolsVersion()}`}
+                    icon={
+                      <TableRow.Icon source={findAssetId("ic_badge_staff")} />
+                    }
+                    value={loaderConfig.loadReactDevTools}
+                    onValueChange={(v: boolean) => {
+                      loaderConfig.loadReactDevTools = v;
+                    }}
+                  />
+                )}
+              </TableRowGroup>
+            </Stack>
           )}
 
           {isLoaderConfigSupported() && (
