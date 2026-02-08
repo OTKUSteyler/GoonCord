@@ -141,7 +141,7 @@ if (isThisFileBeingRunViaCLI) {
   printBuildSuccess(context.hash, releaseBranch, timeTook);
 
   const { timeTook: minifiedTimeTook } = await buildBundle({
-    minify: true,
+    minify: false,
     outfile: config.outfile.replace(/\.js$/, ".min.js"),
   });
 
