@@ -11,7 +11,9 @@ let commands: ApplicationCommand[] = [];
 export function patchCommands() {
     const unpatch = after("getBuiltInCommands", commandsModule, ([type], res: ApplicationCommand[]) => {
         return [...res, ...commands.filter(c =>
-            (type instanceof Array ? type.includes(c.type) : type === c.type)
+            c?.name
+            && c?.description
+            && (type instanceof Array ? type.includes(c.type) : type === c.type)
             && c.__bunny?.shouldHide?.() !== false)
         ];
     });
@@ -31,6 +33,8 @@ export function patchCommands() {
 }
 
 export function registerCommand(command: BunnyApplicationCommand): () => void {
+    if (!command?.name || !command?.description) return () => {};
+
     // Get built in commands
     let builtInCommands: ApplicationCommand[];
     try {
@@ -42,6 +46,8 @@ export function registerCommand(command: BunnyApplicationCommand): () => void {
     builtInCommands.sort((a: ApplicationCommand, b: ApplicationCommand) => parseInt(b.id!) - parseInt(a.id!));
 
     const lastCommand = builtInCommands[builtInCommands.length - 1];
+
+    if (!lastCommand?.id) return () => {};
 
     // Override the new command's id to the last command id - 1
     command.id = (parseInt(lastCommand.id!, 10) - 1).toString();

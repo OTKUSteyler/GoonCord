@@ -28,7 +28,7 @@ function SettingsSection() {
                   <>
                     <LegacyFormRow
                       label={row.title()}
-                      leading={<LegacyFormIcon source={row.icon} />}
+                      leading={row.icon ? <LegacyFormIcon source={row.icon} /> : undefined}
                       trailing={
                         <LegacyFormRow.Arrow
                           label={row.useTrailing?.() || undefined}

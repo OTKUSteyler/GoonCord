@@ -62,8 +62,8 @@ export function serve(options) {
     for (const details of netinterfaces || []) {
       if (details.family !== "IPv4") continue;
       const port = chalk.green((args.port ?? 4040).toString());
-      console.info(`  http://${details.address}:${port}/shiggycord.js`);
-      console.info(`  http://${details.address}:${port}/shiggycord.min.js`);
+      console.info(`  http://${details.address}:${port}/gooncord.js`);
+      console.info(`  http://${details.address}:${port}/gooncord.min.js`);
     }
   }
 
