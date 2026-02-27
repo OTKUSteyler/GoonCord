@@ -57,7 +57,7 @@ export default defineCorePlugin({
 
         if (!allBadges) {
           fetch(
-            "https://codeberg.org/raincord/badges/raw/branch/main/badges.json",
+            "https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json",
           )
             .then((r) => r.json())
             .then((data) => {
