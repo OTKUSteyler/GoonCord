@@ -80,8 +80,8 @@ export default defineCorePlugin({
 
             try {
                 const [badgesRes, rolesRes] = await Promise.all([
-                    fetch("https://codeberg.org/raincord/badges/raw/branch/main/badges.json"),
-                    fetch("https://codeberg.org/raincord/badges/raw/branch/main/assets/roles/roles.json"),
+                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json"),
+                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json"),
                 ]);
 
                 const badgesData: BadgeData = await badgesRes.json();
