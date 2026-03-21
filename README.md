@@ -1,4 +1,4 @@
-# ShiggyCord [![Discord](https://img.shields.io/discord/1427396621905432699?style=social&logo=discord&label=ShiggyCord)](https://discord.shiggycord.dev)
+# GoonCord [![Discord](https://img.shields.io/discord/1427396621905432699?style=social&logo=discord&label=ShiggyCord)](https://discord.shiggycord.dev)
 
 Bundle based on Kettu, made just for fun
 
@@ -6,9 +6,9 @@ Bundle based on Kettu, made just for fun
 
 ### Android
 
-- Rooted: [Shiggy Xposed](https://github.com/kmmiio99o/ShiggyXposed)
+- Rooted: [Goon Xposed](https://github.com/kmmiio99o/ShiggyXposed)
 
-- Non-Rooted: [Shiggy Manager](https://github.com/kmmiio99o/ShiggyManager)
+- Non-Rooted: [Goon Manager](https://github.com/kmmiio99o/ShiggyManager)
 
 ### Android/iOS
 - **Injecting bundle:**
