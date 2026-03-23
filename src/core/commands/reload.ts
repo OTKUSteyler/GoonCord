@@ -4,7 +4,7 @@ import { BundleUpdaterManager } from "@lib/api/native/modules";
 
 export default () =>
   <ApplicationCommand>{
-    name: "reload",
+    name: "ReGoon",
     description: Strings.COMMAND_RELOAD_DESC,
     options: [],
     execute() {
