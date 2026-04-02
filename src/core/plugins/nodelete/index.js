@@ -1,3 +1,4 @@
+import { defineCorePlugin } from "..";
 import settings from "./settings.jsx";
 import * as common from "../../common";
 import { FluxDispatcher, moment } from "@vendetta/metro/common";
