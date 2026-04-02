@@ -1,17 +1,15 @@
-// FavouriteAnything - by @TheUnrealZaka
-// Ported from the Equicord desktop plugin (nin0dev & davri)
-// Patches GIFFavButton so the star shows on all media, not just GIFs.
-// Also fixes the format field when saving (images=1, videos=2)
-// and converts video thumbnails to jpeg for the mobile favourites picker.
+// src/core/plugins/favouriteanything/index.ts
+import { defineCorePlugin } from "..";
+import { findByProps } from "@metro";
+import { before } from "@lib/api/patcher";
+import { logger } from "@lib/utils/logger";
 
-import { logger } from "@vendetta";
-import { findByProps } from "@vendetta/metro";
-import { before } from "@vendetta/patcher";
+type PatchCleanupFn = () => void;
 
 let origType: Function | null = null;
 let memoWrapper: any = null;
 let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-let unpatchAddFavorite: (() => void) | null = null;
+let unpatchAddFavorite: PatchCleanupFn | null = null;
 let origUseFavoriteGIFsMobile: Function | null = null;
 let favMobileModule: any = null;
 
@@ -24,7 +22,6 @@ function isVideo(url: string): boolean {
     return VIDEO_EXT.some(e => path.endsWith(e));
 }
 
-// cdn.discordapp.com doesn't support ?format=, media.discordapp.net does
 function makeVideoThumbnail(url: string): string {
     if (!url) return url;
     let out = url.replace("cdn.discordapp.com", "media.discordapp.net");
@@ -35,7 +32,7 @@ function makeVideoThumbnail(url: string): string {
 }
 
 function findGIFFavButton(): any {
-    const modules = (window as any).vendetta?.metro?.modules ?? (window as any).modules;
+    const modules = (globalThis as any).__bunny?.metro?.modules ?? (globalThis as any).modules;
     if (!modules) return null;
 
     for (const id in modules) {
@@ -63,7 +60,7 @@ function patchSource(source: any): any {
     };
 }
 
-function applyPatch() {
+function applyPatch(): boolean {
     memoWrapper = findGIFFavButton();
     if (!memoWrapper) return false;
 
@@ -77,7 +74,7 @@ function applyPatch() {
     return true;
 }
 
-function patchAddFavorite() {
+function patchAddFavorite(): void {
     const favModule = findByProps("addFavoriteGIF");
     if (!favModule) return;
 
@@ -95,7 +92,7 @@ function patchAddFavorite() {
     });
 }
 
-function patchMobileFavorites() {
+function patchMobileFavorites(): void {
     const mod = findByProps("useFavoriteGIFsMobile");
     if (!mod) return;
 
@@ -119,8 +116,21 @@ function patchMobileFavorites() {
     };
 }
 
-export default {
-    onLoad: () => {
+export default defineCorePlugin({
+    manifest: {
+        id: "bunny.favouriteanything",
+        version: "1.0.0",
+        type: "plugin",
+        spec: 3,
+        main: "",
+        display: {
+            name: "FavouriteAnything",
+            description: "Adds the favourite button to ALL media, not just GIFs",
+            authors: [{ name: "TheUnrealZaka" }],
+        },
+    },
+
+    start() {
         if (applyPatch()) {
             logger.log("[FavouriteAnything] Patched GIFFavButton.");
         } else {
@@ -141,7 +151,8 @@ export default {
         patchAddFavorite();
         patchMobileFavorites();
     },
-    onUnload: () => {
+
+    stop() {
         if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
         if (memoWrapper && origType) {
             memoWrapper.type = origType;
@@ -155,4 +166,4 @@ export default {
             favMobileModule = null;
         }
     },
-};
+});
