@@ -16,8 +16,7 @@ let _metroCache = null as unknown as ReturnType<typeof buildInitCache>;
 export const getMetroCache = () => _metroCache;
 
 function buildInitCache() {
-    let modulesCount = 0;
-    for (const _ in window.modules) modulesCount++;
+    const modulesCount = Object.keys(window.modules).length;
 
     const cache = {
         _v: CACHE_VERSION,
@@ -47,8 +46,7 @@ export async function initMetroCache() {
             _metroCache = null!;
             throw "cache invalidated; version mismatch";
         }
-        let currentCount = 0;
-        for (const _ in window.modules) currentCount++;
+        let currentCount = Object.keys(window.modules).length;
         if (_metroCache._modulesCount !== currentCount) {
             _metroCache = null!;
             throw "cache invalidated; modules count mismatch";

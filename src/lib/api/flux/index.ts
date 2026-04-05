@@ -8,6 +8,8 @@ export const dispatcher = FluxDispatcher;
 
 type Intercept = (payload: Record<string, any> & { type: string; }) => any;
 let intercepts: Intercept[] = [];
+const interceptIndex = new Map<Intercept, number>();
+let nextInterceptId = 0;
 
 /**
  * @internal
@@ -33,7 +35,14 @@ export function injectFluxInterceptor() {
 
     (dispatcher._interceptors ??= []).unshift(cb);
 
-    return () => dispatcher._interceptors &&= dispatcher._interceptors.filter(v => v !== cb);
+    return () => {
+        const idx = interceptIndex.get(cb);
+        if (idx !== undefined) {
+            intercepts.splice(idx, 1);
+            interceptIndex.delete(cb);
+            intercepts.forEach((intercept, i) => interceptIndex.set(intercept, i));
+        }
+    };
 }
 
 /**
@@ -41,9 +50,16 @@ export function injectFluxInterceptor() {
  * nullish -> nothing, falsy -> block, object -> modify
  */
 export function intercept(cb: Intercept) {
+    const id = nextInterceptId++;
+    interceptIndex.set(cb, id);
     intercepts.push(cb);
 
     return () => {
-        intercepts = intercepts.filter(i => i !== cb);
+        const idx = interceptIndex.get(cb);
+        if (idx !== undefined) {
+            intercepts.splice(idx, 1);
+            interceptIndex.delete(cb);
+            intercepts.forEach((intercept, i) => interceptIndex.set(intercept, i));
+        }
     };
 }
