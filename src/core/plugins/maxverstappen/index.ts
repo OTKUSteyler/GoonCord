@@ -6,7 +6,7 @@ import { logger } from "@lib/utils/logger";
 const { ReactNative } = window as any;
 const { DCDSoundManager } = ReactNative?.NativeModules || {};
 
-const AUDIO_URL = "https://your-audio-link-here.mp3";
+const AUDIO_URL = "https://github.com/OTKUSteyler/GoonCord/raw/refs/heads/main/src/core/plugins/maxverstappen/Max%20Verstappen.mp3";
 const SOUND_ID = 6972; // different id from enhancements (6971)
 const TRIGGER_CHANCE = 0.33;
 const MAX_PATTERN = /\bmax\s*verstappen\b/i;
