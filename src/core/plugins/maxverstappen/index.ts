@@ -7,12 +7,13 @@ const { DCDSoundManager } = ReactNative?.NativeModules || {};
 
 const AUDIO_URL = "https://github.com/OTKUSteyler/GoonCord/raw/refs/heads/main/src/core/plugins/maxverstappen/Max%20Verstappen.mp3";
 const SOUND_ID = 6972;
-const TRIGGER_CHANCE = 0.33; 
+const TRIGGER_CHANCE = 0.33;
 const MAX_PATTERN = /\bmax\s*verstappen\b/i;
 
 let isPlaying = false;
+let isPrepared = false;
+let isPreparing = false;
 let timeoutId: NodeJS.Timeout | null = null;
-
 let onMessageCreate: ((e: any) => void) | null = null;
 let onMessageSend: ((e: any) => void) | null = null;
 
@@ -25,38 +26,43 @@ function checkText(text: string): boolean {
     return MAX_PATTERN.test(text) && shouldTrigger();
 }
 
-async function playAudio() {
-    if (!DCDSoundManager) {
-        logger.error("[MaxVerstappen] DCDSoundManager not available");
-        return;
-    }
+function ensurePrepared(): Promise<boolean> {
+    return new Promise((resolve) => {
+        if (isPrepared) return resolve(true);
+        if (isPreparing) return resolve(false);
 
-    if (isPlaying) {
-        if (timeoutId) clearTimeout(timeoutId);
-        DCDSoundManager.stop(SOUND_ID);
+        isPreparing = true;
+        DCDSoundManager.prepare(AUDIO_URL, "music", SOUND_ID, (error: any) => {
+            isPreparing = false;
+            if (error) {
+                logger.error("[MaxVerstappen] Failed to prepare:", error);
+                return resolve(false);
+            }
+            isPrepared = true;
+            resolve(true);
+        });
+    });
+}
+
+async function playAudio() {
+    if (!DCDSoundManager) return;
+    if (isPlaying) return;
+
+    const ready = await ensurePrepared();
+    if (!ready) return;
+
+    isPlaying = true;
+    try {
+        await DCDSoundManager.play(SOUND_ID);
+        timeoutId = setTimeout(() => {
+            DCDSoundManager.stop(SOUND_ID);
+            isPlaying = false;
+            timeoutId = null;
+        }, 5000);
+    } catch (e) {
+        logger.error("[MaxVerstappen] Playback error:", e);
         isPlaying = false;
     }
-
-    DCDSoundManager.prepare(AUDIO_URL, "music", SOUND_ID, async (error: any, sound: any) => {
-        if (error) {
-            logger.error("[MaxVerstappen] Failed to prepare sound:", error);
-            return;
-        }
-
-        isPlaying = true;
-        try {
-            await DCDSoundManager.play(SOUND_ID);
-            const duration = sound?.duration || 5000;
-            timeoutId = setTimeout(() => {
-                DCDSoundManager.stop(SOUND_ID);
-                isPlaying = false;
-                timeoutId = null;
-            }, duration);
-        } catch (e) {
-            logger.error("[MaxVerstappen] Playback error:", e);
-            isPlaying = false;
-        }
-    });
 }
 
 export default defineCorePlugin({
@@ -75,7 +81,7 @@ export default defineCorePlugin({
 
     start() {
         if (!DCDSoundManager) {
-            logger.error("[MaxVerstappen] DCDSoundManager not found - plugin disabled");
+            logger.error("[MaxVerstappen] DCDSoundManager not found");
             return;
         }
 
@@ -85,28 +91,21 @@ export default defineCorePlugin({
             return;
         }
 
-        
         onMessageCreate = ({ message }: any) => {
             try {
                 if (!message?.content) return;
-                if (checkText(message.content)) {
-                    logger.log("[MaxVerstappen] Triggered on received message!");
-                    playAudio();
-                }
+                if (checkText(message.content)) playAudio();
             } catch (e) {
-                logger.error("[MaxVerstappen] Error in MESSAGE_CREATE handler:", e);
+                logger.error("[MaxVerstappen] MESSAGE_CREATE error:", e);
             }
         };
 
         onMessageSend = ({ message }: any) => {
             try {
                 if (!message?.content) return;
-                if (checkText(message.content)) {
-                    logger.log("[MaxVerstappen] Triggered on sent message!");
-                    playAudio();
-                }
+                if (checkText(message.content)) playAudio();
             } catch (e) {
-                logger.error("[MaxVerstappen] Error in MESSAGE_SEND handler:", e);
+                logger.error("[MaxVerstappen] MESSAGE_SEND error:", e);
             }
         };
 
@@ -135,6 +134,8 @@ export default defineCorePlugin({
 
         onMessageCreate = null;
         onMessageSend = null;
+        isPrepared = false;
+        isPreparing = false;
 
         logger.log("[MaxVerstappen] Disabled");
     },
