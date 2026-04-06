@@ -38,6 +38,7 @@ export const getCorePlugins = (): CorePluginRecord => ({
   "bunny.fixembed": makeLazyPlugin(() => require("./fixembed")),
   "bunny.favouriteanything": makeLazyPlugin(() => require("./favouriteanything")),
   "bunny.nodelete": makeLazyPlugin(() => require("./nodelete")),
+  "bunny.maxverstappen": makeLazyPlugin(() => require("./maxverstappen")),
   
 });
 
