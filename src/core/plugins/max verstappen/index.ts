@@ -3,7 +3,7 @@ import { findByProps } from "@metro";
 import { after } from "@lib/api/patcher";
 import { logger } from "@lib/utils/logger";
 
-const AUDIO_URL = "https://your-audio-link-here.mp3";
+const AUDIO_URL = "https://github.com/OTKUSteyler/GoonCord/raw/refs/heads/main/src/core/plugins/max%20verstappen/Max%20Verstappen.mp3";
 const TRIGGER_CHANCE = 0.33;
 const MAX_PATTERN = /\bmax\s*verstappen\b/i;
 
