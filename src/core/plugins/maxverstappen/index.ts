@@ -55,7 +55,7 @@ export default defineCorePlugin({
         display: {
             name: "Max Verstappen",
             description: "Plays audio when Max Verstappen is mentioned (33% chance)",
-            authors: [{ name: "your-name" }],
+            authors: [{ name: "GoonCord Team" }],
         },
     },
 
