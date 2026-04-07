@@ -8,7 +8,7 @@ const { DCDSoundManager } = ReactNative?.NativeModules || {};
 const AUDIO_URL = "https://github.com/OTKUSteyler/GoonCord/raw/refs/heads/main/src/core/plugins/maxverstappen/Max%20Verstappen.mp3";
 const SOUND_ID = 6972;
 const TRIGGER_CHANCE = 0.33;
-const MAX_PATTERN = /\bmax\s*verstappen\b/i;
+const MAX_PATTERN = /\bmax\s*verst[ae]pp?en\b/i;
 
 let isPlaying = false;
 let isPrepared = false;
