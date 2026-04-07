@@ -13,6 +13,7 @@ const MAX_PATTERN = /\bmax\s*verst[ae]pp?en\b/i;
 let isPlaying = false;
 let isPrepared = false;
 let isPreparing = false;
+let soundDuration = 30000;
 let timeoutId: NodeJS.Timeout | null = null;
 let onMessageCreate: ((e: any) => void) | null = null;
 let onMessageSend: ((e: any) => void) | null = null;
@@ -26,20 +27,21 @@ function checkText(text: string): boolean {
     return MAX_PATTERN.test(text) && shouldTrigger();
 }
 
-function ensurePrepared(): Promise<boolean> {
+function ensurePrepared(): Promise<number> {
     return new Promise((resolve) => {
-        if (isPrepared) return resolve(true);
-        if (isPreparing) return resolve(false);
+        if (isPrepared) return resolve(soundDuration);
+        if (isPreparing) return resolve(-1);
 
         isPreparing = true;
-        DCDSoundManager.prepare(AUDIO_URL, "music", SOUND_ID, (error: any) => {
+        DCDSoundManager.prepare(AUDIO_URL, "music", SOUND_ID, (error: any, sound: any) => {
             isPreparing = false;
             if (error) {
                 logger.error("[MaxVerstappen] Failed to prepare:", error);
-                return resolve(false);
+                return resolve(-1);
             }
             isPrepared = true;
-            resolve(true);
+            soundDuration = sound?.duration || 30000;
+            resolve(soundDuration);
         });
     });
 }
@@ -48,8 +50,8 @@ async function playAudio() {
     if (!DCDSoundManager) return;
     if (isPlaying) return;
 
-    const ready = await ensurePrepared();
-    if (!ready) return;
+    const duration = await ensurePrepared();
+    if (duration === -1) return;
 
     isPlaying = true;
     try {
@@ -58,7 +60,7 @@ async function playAudio() {
             DCDSoundManager.stop(SOUND_ID);
             isPlaying = false;
             timeoutId = null;
-        }, 5000);
+        }, soundDuration);
     } catch (e) {
         logger.error("[MaxVerstappen] Playback error:", e);
         isPlaying = false;
@@ -136,6 +138,7 @@ export default defineCorePlugin({
         onMessageSend = null;
         isPrepared = false;
         isPreparing = false;
+        soundDuration = 30000;
 
         logger.log("[MaxVerstappen] Disabled");
     },
