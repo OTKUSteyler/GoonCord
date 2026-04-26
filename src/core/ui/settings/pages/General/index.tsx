@@ -200,7 +200,7 @@ export default function General() {
           <TableSwitchRow
             label={Strings.SETTINGS_ACTIVATE_DISCORD_EXPERIMENTS}
             subLabel={Strings.SETTINGS_ACTIVATE_DISCORD_EXPERIMENTS_DESC}
-            icon={<TableRow.Icon source={findAssetId("StaffBadgeIcon")} />}
+            icon={<TableRow.Icon source={findAssetId("FlaskIcon")} />}
             value={settings.enableDiscordDeveloperSettings}
             onValueChange={(v: boolean) => {
               settings.enableDiscordDeveloperSettings = v;
