@@ -4,13 +4,13 @@
 export type SearchTree = Record<string, any>;
 export type SearchFilter = (tree: SearchTree) => boolean;
 export interface FindInTreeOptions {
-    walkable?: string[];
-    ignore?: string[];
+    walkable?: string[] | Set<string>;
+    ignore?: string[] | Set<string>;
     maxDepth?: number;
 }
 
-function treeSearch(tree: SearchTree, filter: SearchFilter, opts: Required<FindInTreeOptions>, depth: number): any {
-    if (depth > opts.maxDepth) return;
+function treeSearch(tree: SearchTree, filter: SearchFilter, walkable: Set<string>, ignore: Set<string>, maxDepth: number, depth: number): any {
+    if (depth > maxDepth) return;
     if (!tree) return;
 
     try {
@@ -22,21 +22,19 @@ function treeSearch(tree: SearchTree, filter: SearchFilter, opts: Required<FindI
             if (typeof item !== "object" || item === null) continue;
 
             try {
-                const found = treeSearch(item, filter, opts, depth + 1);
+                const found = treeSearch(item, filter, walkable, ignore, maxDepth, depth + 1);
                 if (found) return found;
             } catch { }
         }
     } else if (typeof tree === "object") {
-        const walkableLen = opts.walkable.length;
-        const ignoreLen = opts.ignore.length;
         for (const key in tree) {
             if (Object.prototype.hasOwnProperty.call(tree, key) === false) continue;
             if (typeof tree[key] !== "object" || tree[key] === null) continue;
-            if (walkableLen && !opts.walkable.includes(key)) continue;
-            if (ignoreLen && opts.ignore.includes(key)) continue;
+            if (walkable.size && !walkable.has(key)) continue;
+            if (ignore.size && ignore.has(key)) continue;
 
             try {
-                const found = treeSearch(tree[key], filter, opts, depth + 1);
+                const found = treeSearch(tree[key], filter, walkable, ignore, maxDepth, depth + 1);
                 if (found) return found;
             } catch { }
         }
@@ -52,5 +50,5 @@ export default function findInTree(
         maxDepth = 100
     }: FindInTreeOptions = {},
 ): any | undefined {
-    return treeSearch(tree, filter, { walkable, ignore, maxDepth }, 0);
+    return treeSearch(tree, filter, new Set(walkable), new Set(ignore), maxDepth, 0);
 }

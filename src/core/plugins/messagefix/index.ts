@@ -26,17 +26,19 @@ export default defineCorePlugin({
 
     // Replace with our implementation
     MessageActions.sendMessage = function (
-      channelId,
-      message,
-      replyRef,
-      options,
+      channelId: unknown,
+      message: unknown,
+      replyRef: unknown,
+      options: Record<string, unknown>,
     ) {
       // Ensure options exists and has a nonce
       options = options || {};
-      options.nonce = options.nonce || (BigInt(Date.now() - 1420070400000) << 22n).toString();
+      if (!options.nonce) {
+        options.nonce = (BigInt(Date.now() - 1420070400000) << 22n).toString();
+      }
 
       // Call original with fixed parameters
-      return originalSendMessage.call(
+      return (originalSendMessage as Function).call(
         this,
         channelId,
         message,
