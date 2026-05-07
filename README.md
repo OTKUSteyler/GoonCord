@@ -1,6 +1,6 @@
 # GoonCord [![Discord](https://img.shields.io/discord/1427396621905432699?style=social&logo=discord&label=ShiggyCord)](https://discord.shiggycord.dev)
 
-Bundle based on Kettu, made just for fun
+Bundle based on ShiggyCord, made just for fun
 
 ## Installing
 
