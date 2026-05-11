@@ -54,7 +54,7 @@ function transformLinks(content: string, config: FixEmbedSettings): string {
     // TikTok short links (vm.tiktok.com)
     result = result.replace(
       /https?:\/\/vm\.tiktok\.com\/([A-Za-z0-9]+)\/?/gi,
-      "https://vm.tnktok.com/$1",
+      "https://embedez.com/$1",
     );
   }
   // Reddit: Replace domain, keep path
