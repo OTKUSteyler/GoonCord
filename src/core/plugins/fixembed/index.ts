@@ -49,7 +49,7 @@ function transformLinks(content: string, config: FixEmbedSettings): string {
   if (config.tiktok) {
     result = result.replace(
       /https?:\/\/(?:www\.)?tiktok\.com(\/[^\s]+)/gi,
-      "https://embedez.com$1",
+      "https://vm.tiktokez.com/$1",
     );
     // TikTok short links (vm.tiktok.com)
     result = result.replace(
