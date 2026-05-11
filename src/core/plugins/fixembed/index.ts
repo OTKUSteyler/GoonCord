@@ -11,7 +11,7 @@ const { TableRowGroup, TableRow, TableSwitchRow, Stack } = findByProps(
   "TableSwitchRow",
   "Stack",
 );
-const { ScrollView, Text } = require("react-native");
+const { ScrollView, Text, Linking } = require("react-native");
 
 type FixEmbedSettings = {
   twitter: boolean;
@@ -45,11 +45,11 @@ function transformLinks(content: string, config: FixEmbedSettings): string {
       "https://uuinstagram.com$1",
     );
   }
-  // TikTok: Replace domain, keep path
+  // TikTok: Replace domain, keep path (use embedez.com for all TikTok links)
   if (config.tiktok) {
     result = result.replace(
       /https?:\/\/(?:www\.)?tiktok\.com(\/[^\s]+)/gi,
-      "https://tnktok.com$1",
+      "https://embedez.com$1",
     );
     // TikTok short links (vm.tiktok.com)
     result = result.replace(
@@ -99,7 +99,6 @@ export default defineCorePlugin({
       setConfig((prev) => ({ ...prev, [key]: value }));
     };
 
-    // Prefer table-style rows (TableRowGroup / TableSwitchRow) and Stack layout similar to other core plugins.
     const {
       TableRowGroup: _TRG,
       TableRow: _TR,
@@ -107,7 +106,6 @@ export default defineCorePlugin({
       Stack: _S,
     } = findByProps("TableRowGroup", "TableRow", "TableSwitchRow", "Stack");
 
-    // Fallback if the table-style components are not available in the host environment
     if (!_TRG || !_TSR || !_TR || !_S) {
       return React.createElement(
         ScrollView,
@@ -120,7 +118,6 @@ export default defineCorePlugin({
       );
     }
 
-    // Use the resolved components
     const TableRowGroup = _TRG;
     const TableRow = _TR;
     const TableSwitchRow = _TSR;
@@ -163,6 +160,12 @@ export default defineCorePlugin({
             subLabel:
               "This plugin automatically converts social media links to privacy-friendly alternative frontends for better embeds.",
             disabled: true,
+          }),
+          React.createElement(TableRow, {
+            label: "EmbedEZ",
+            subLabel: "TikTok embed fix powered by embedez.com — tap to open",
+            onPress: () => Linking.openURL("https://embedez.com/"),
+            arrow: true,
           }),
         ),
       ),
