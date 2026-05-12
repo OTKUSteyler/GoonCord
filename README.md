@@ -32,7 +32,7 @@ Bundle based on ShiggyCord, made just for fun
     bun run build
     ```
 1. In the newly created `dist` directory, run a HTTP server. I recommend [http-server](https://www.npmjs.com/package/http-server).
-1. Go to Settings > Developer enabled earlier. Enable `Load from custom url` and input the IP address and port of the server (e.g. `http://192.168.1.236:4040/shiggycord.js`) in the new input box labelled `ShiggyCord URL`.
+1. Go to Settings > Developer enabled earlier. Enable `Load from custom url` and input the IP address and port of the server (e.g. `http://192.168.1.236:4040/gooncord.js`) in the new input box labelled `GoonCord URL`.
 1. Restart Discord. Upon reload, you should notice that your device will download GoonCord's bundled code from your server, rather than GitHub.
 1. Make your changes, rebuild, reload, go wild!
 
