@@ -37,3 +37,5 @@ Bundle based on ShiggyCord, made just for fun
 1. Make your changes, rebuild, reload, go wild!
 
 Alternatively, you can directly *serve* the bundled code by running `bun run serve`. `gooncord.js` will be served on your local address under the port 4040. You will then insert `http://<local ip address>:4040/gooncord.js` as a custom url and reload. Whenever you restart your mobile client, the script will rebuild the bundle as your client fetches it.
+
+![OTKUSteyler](https://count.getloli.com/@OTKUSteyler?name=OTKUSteyler&theme=miku&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=1)
