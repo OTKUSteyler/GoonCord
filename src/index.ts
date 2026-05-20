@@ -18,56 +18,73 @@ import { getDebugInfo, initDebugger } from "@lib/api/debug";
 import * as lib from "./lib";
 import { timings } from "@lib/utils/timings";
 
+const INIT_TIMEOUT_MS = 3000; // 3s max per init before we give up and move on
+
 /**
- * Safe wrapper — runs a named init, isolates its failure so it cannot
- * crash the whole startup sequence, and returns its unpatcher (or null).
+ * Races a named init against a timeout so a deadlocked promise can never
+ * freeze the splash screen indefinitely.
  */
 async function safeInit(
   name: string,
   fn: () => Promise<any>,
+  timeoutMs = INIT_TIMEOUT_MS,
 ): Promise<any | null> {
+  const timeout = new Promise<null>((resolve) =>
+    setTimeout(() => {
+      logger.log(`[ShiggyCord] init timed out (skipped): ${name}`);
+      resolve(null);
+    }, timeoutMs),
+  );
+
   try {
-    return await timings.measureAsync(`critical:${name}`, async () => fn());
+    return await Promise.race([
+      timings.measureAsync(`critical:${name}`, async () => fn()),
+      timeout,
+    ]);
   } catch (e) {
-    // Settings-related patches often reference Discord internals that can
-    // be renamed/removed in a bundle update. Isolating them here means the
-    // rest of the app still loads even if one patch fails.
     logger.log(`[ShiggyCord] critical init failed (non-fatal): ${name}`, e);
     return null;
   }
 }
 
 export default async () => {
-  // Non-settings inits — less likely to be affected by bundle changes.
   const stableInits: Array<[string, () => Promise<any>]> = [
-    ["initThemes",          () => initThemes()],
-    ["injectFluxInterceptor", () => injectFluxInterceptor()],
-    ["patchLogHook",        () => patchLogHook()],
-    ["patchCommands",       () => patchCommands()],
-    ["patchJsx",            () => patchJsx()],
-    ["patchErrorBoundary",  () => patchErrorBoundary()],
-    ["initVendettaObject",  () => initVendettaObject()],
-    ["initFetchI18nStrings", () => initFetchI18nStrings()],
-    ["initDebugger",        () => initDebugger()],
+    ["initThemes",            () => initThemes()],
+    ["patchLogHook",          () => patchLogHook()],
+    ["patchCommands",         () => patchCommands()],
+    ["patchJsx",              () => patchJsx()],
+    ["patchErrorBoundary",    () => patchErrorBoundary()],
+    ["initVendettaObject",    () => initVendettaObject()],
+    ["initDebugger",          () => initDebugger()],
   ];
 
-  // Settings-related inits — these are the ones touching SettingHookHarness
-  // and most likely to break when Discord updates its bundle. Each runs in
-  // total isolation so a failure in one cannot affect the others.
+  // These are the most likely to deadlock — give them slightly more time
+  // but still cap them so they can't hang the splash screen.
+  const networkInits: Array<[string, () => Promise<any>]> = [
+    ["injectFluxInterceptor", () => injectFluxInterceptor()],
+    ["initFetchI18nStrings",  () => initFetchI18nStrings()],
+  ];
+
+  // Settings inits — most likely to have broken patches from bundle update.
   const settingsInits: Array<[string, () => Promise<any>]> = [
     ["patchSettings", () => patchSettings()],
     ["initSettings",  () => initSettings()],
     ["initFixes",     () => initFixes()],
   ];
 
-  // Run stable inits in parallel as before.
+  // Stable inits in parallel — fast and unlikely to deadlock.
   const stableResults = await Promise.all(
     stableInits.map(([name, fn]) => safeInit(name, fn)),
   );
   stableResults.forEach((f) => f && lib.unload.push(f));
 
-  // Run settings inits sequentially and isolated — if patchSettings corrupts
-  // state, we don't want initSettings running on top of it blindly.
+  // Network/flux inits in parallel with a longer timeout.
+  const networkResults = await Promise.all(
+    networkInits.map(([name, fn]) => safeInit(name, fn, 5000)),
+  );
+  networkResults.forEach((f) => f && lib.unload.push(f));
+
+  // Settings inits sequentially and isolated.
   for (const [name, fn] of settingsInits) {
     const result = await safeInit(name, fn);
     if (result) lib.unload.push(result);
@@ -102,27 +119,4 @@ export default async () => {
         .catch(() => {});
     } catch {
       // suppressed
-    }
-
-    updateFonts().catch((e) => logger.log("updateFonts failed:", e));
-
-    setTimeout(
-      () => {
-        updatePlugins().catch((e) =>
-          logger.log("updatePlugins failed (deferred 5min):", e),
-        );
-      },
-      5 * 60 * 1000,
-    );
-  };
-
-  try {
-    InteractionManager.runAfterInteractions(() => {
-      setTimeout(runDeferred, 50);
-    });
-  } catch (e) {
-    setTimeout(runDeferred, 200);
-  }
-
-  logger.log("GoonCord is ready.");
-};or 
+                         }
