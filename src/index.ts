@@ -15,108 +15,116 @@ import { updaterSettings } from "@lib/api/settings";
 import { InteractionManager } from "react-native";
 import { getDebugInfo, initDebugger } from "@lib/api/debug";
 
+// Debug toggle helper (temporary runtime fallback). The helper is dynamically
+// imported when needed (to avoid bundling it permanently) and removed after use.
+
 import * as lib from "./lib";
 import { timings } from "@lib/utils/timings";
 
-const INIT_TIMEOUT_MS = 3000; // 3s max per init before we give up and move on
-
 /**
- * Races a named init against a timeout so a deadlocked promise can never
- * freeze the splash screen indefinitely.
+ * Start sequence split into critical (UI) and deferred (network/plugin) work.
+ * The goal is to get the UI ready quickly and run heavy tasks after interactions.
  */
-async function safeInit(
-  name: string,
-  fn: () => Promise<any>,
-  timeoutMs = INIT_TIMEOUT_MS,
-): Promise<any | null> {
-  const timeout = new Promise<null>((resolve) =>
-    setTimeout(() => {
-      logger.log(`[ShiggyCord] init timed out (skipped): ${name}`);
-      resolve(null);
-    }, timeoutMs),
-  );
-
-  try {
-    return await Promise.race([
-      timings.measureAsync(`critical:${name}`, async () => fn()),
-      timeout,
-    ]);
-  } catch (e) {
-    logger.log(`[ShiggyCord] critical init failed (non-fatal): ${name}`, e);
-    return null;
-  }
-}
-
 export default async () => {
-  const stableInits: Array<[string, () => Promise<any>]> = [
-    ["initThemes",            () => initThemes()],
-    ["patchLogHook",          () => patchLogHook()],
-    ["patchCommands",         () => patchCommands()],
-    ["patchJsx",              () => patchJsx()],
-    ["patchErrorBoundary",    () => patchErrorBoundary()],
-    ["initVendettaObject",    () => initVendettaObject()],
-    ["initDebugger",          () => initDebugger()],
-  ];
-
-  // These are the most likely to deadlock — give them slightly more time
-  // but still cap them so they can't hang the splash screen.
-  const networkInits: Array<[string, () => Promise<any>]> = [
+  // Wrap critical initializers as named functions so we can instrument each.
+  const criticalInitFns: Array<[string, () => Promise<any>]> = [
+    ["initThemes", () => initThemes()],
     ["injectFluxInterceptor", () => injectFluxInterceptor()],
-    ["initFetchI18nStrings",  () => initFetchI18nStrings()],
-  ];
-
-  // Settings inits — most likely to have broken patches from bundle update.
-  const settingsInits: Array<[string, () => Promise<any>]> = [
     ["patchSettings", () => patchSettings()],
-    ["initSettings",  () => initSettings()],
-    ["initFixes",     () => initFixes()],
+    ["patchLogHook", () => patchLogHook()],
+    ["patchCommands", () => patchCommands()],
+    ["patchJsx", () => patchJsx()],
+    ["patchErrorBoundary", () => patchErrorBoundary()],
+    ["initVendettaObject", () => initVendettaObject()],
+    ["initFetchI18nStrings", () => initFetchI18nStrings()],
+    ["initSettings", () => initSettings()],
+    ["initFixes", () => initFixes()],
+    ["initDebugger", () => initDebugger()],
   ];
 
-  // Stable inits in parallel — fast and unlikely to deadlock.
-  const stableResults = await Promise.all(
-    stableInits.map(([name, fn]) => safeInit(name, fn)),
-  );
-  stableResults.forEach((f) => f && lib.unload.push(f));
+  // Run critical inits with timing instrumentation and collect unpatchers/cleanup handlers.
+  await Promise.all(
+    criticalInitFns.map(([name, fn]) =>
+      timings.measureAsync(`critical:${name}`, async () => fn()),
+    ),
+  )
+    .then((u) => u.forEach((f) => f && lib.unload.push(f)))
+    .catch((e) => {
+      // Log but don't abort — critical inits failing should be visible in logs.
+      console.warn("Critical initialization error:", e);
+    });
 
-  // Network/flux inits in parallel with a longer timeout.
-  const networkResults = await Promise.all(
-    networkInits.map(([name, fn]) => safeInit(name, fn, 5000)),
-  );
-  networkResults.forEach((f) => f && lib.unload.push(f));
-
-  // Settings inits sequentially and isolated.
-  for (const [name, fn] of settingsInits) {
-    const result = await safeInit(name, fn);
-    if (result) lib.unload.push(result);
-  }
-
+  // Expose the library object early so UI and other code can access window.bunny.
   window.bunny = lib;
 
   logger.log(
     "ShiggyCord: UI-critical initialization complete — deferring plugin & network work",
   );
 
+  // Deferred work: run after interactions to avoid blocking initial paint and navigation.
   const runDeferred = async () => {
     const { VdPluginManager } = await import("@core/vendetta/plugins");
     const { initPlugins, updatePlugins } = await import("@lib/addons/plugins");
 
+    // Initialize Vendetta plugins (may start many plugins) — do not block UI.
     VdPluginManager.initPlugins()
       .then((u) => lib.unload.push(u))
       .catch((e) => logger.log("Vendetta init failed:", e));
 
+    // Start ShiggyCord (Bunny) plugins now without forcing repository updates.
+    // Plugin repository fetching is deferred so the app can finish launching first.
+    // Stagger plugin startup to reduce CPU/memory spikes: use smaller batches and a small interval.
+    // This keeps the UI responsive while plugins initialize in the background.
     initPlugins({ staggerInterval: 500, batchSize: 2 });
 
+    // Attempt a lightweight recovery toggle if some core plugins failed to start.
     try {
+      // Dynamically import the helper (if present) but suppress verbose errors.
       const mod = await import("@core/debug/toggleCorePlugins").catch(
         () => null,
       );
       if (mod?.default) {
+        // Run helper with minimal noise; ignore failures.
         mod.default({ offDuration: 1500 }).catch(() => {});
       }
 
+      // Try to remove the helper source file (best-effort, ignore failures).
       await import("@lib/api/native/fs")
         .then((fs) => fs.removeFile("src/core/debug/toggleCorePlugins.ts"))
         .catch(() => {});
     } catch {
       // suppressed
-                         }
+    }
+
+    // Update fonts in background
+    updateFonts().catch((e) => logger.log("updateFonts failed:", e));
+
+    // Schedule plugin repository update after a delay (5 minutes) so update work
+    // does not impact initial launch performance.
+    setTimeout(
+      () => {
+        updatePlugins().catch((e) =>
+          logger.log("updatePlugins failed (deferred 5min):", e),
+        );
+      },
+      5 * 60 * 1000,
+    );
+
+    // Note: we intentionally moved the call to `updatePlugins()` above so core
+    // plugins are registered prior to calling `initPlugins()`.
+  };
+
+  // Preferred: wait until interactions finish (animations / navigation).
+  try {
+    InteractionManager.runAfterInteractions(() => {
+      // small delay to ensure native lifecycle settled
+      setTimeout(runDeferred, 50);
+    });
+  } catch (e) {
+    // Fallback if InteractionManager isn't available for any reason.
+    setTimeout(runDeferred, 200);
+  }
+
+  // Final ready log for basic UI availability.
+  logger.log("GoonCord is ready.");
+};
