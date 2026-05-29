@@ -160,11 +160,12 @@ export function formatString<T = void>(
     try {
         // @ts-ignore
         return new IntlMessageFormat(str).format(val);
-    } catch (e) {
-        if (e instanceof SyntaxError) {
+    } catch (e: any) {
+        if (e?.name === "SyntaxError") {
             logger.warn(`[i18n] Failed to parse message for key "${String(key)}":`, e.message);
             return str as FormatStringRet<T>;
         }
-        throw e;
+        logger.warn(`[i18n] Failed to format message for key "${String(key)}":`, e?.message ?? e);
+        return str as FormatStringRet<T>;
     }
 }
