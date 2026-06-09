@@ -88,28 +88,17 @@ export default defineCorePlugin({
             try {
                 // fetch equicord badges once and cache globally
                 if (!equicordData) {
-                    try {
-                        const equicordRes = await fetch("https://badge.equicord.org/badges.json");
-                        if (equicordRes.ok) equicordData = await equicordRes.json();
-                        else console.error("[bunny.badges] equicord HTTP error:", equicordRes.status);
-                    } catch (e) {
-                        console.error("[bunny.badges] equicord fetch failed:", e);
-                    }
+                    const equicordRes = await fetch("https://badge.equicord.org/badges.json");
+                    equicordData = await equicordRes.json();
                 }
 
                 const [badgesRes, rolesRes] = await Promise.all([
-                  fetch("https://raw.githubusercontent.com/OTKUSteyler/GoonCord/refs/heads/main/src/core/plugins/badges/Stuff/Badges.json")
-    .catch((e) => { console.error("[bunny.badges] badges fetch failed:", e); return null; }),
-fetch("https://raw.githubusercontent.com/OTKUSteyler/GoonCord/refs/heads/main/src/core/plugins/badges/Stuff/roles.json")
-    .catch((e) => { console.error("[bunny.badges] roles fetch failed:", e); return null; }),
-                        
+                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json"),
+                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json"),
                 ]);
 
-                if (badgesRes && !badgesRes.ok) console.error("[bunny.badges] badges HTTP error:", badgesRes.status);
-                if (rolesRes && !rolesRes.ok) console.error("[bunny.badges] roles HTTP error:", rolesRes.status);
-
-                const badgesData: BadgeData = badgesRes?.ok ? await badgesRes.json() : {};
-                const rolesData: RolesData = rolesRes?.ok ? await rolesRes.json() : {};
+                const badgesData: BadgeData = await badgesRes.json();
+                const rolesData: RolesData = await rolesRes.json();
 
                 const userBadgeData = badgesData[userId] || { roles: [], custom: [] };
                 const allBadges: Badge[] = [];
