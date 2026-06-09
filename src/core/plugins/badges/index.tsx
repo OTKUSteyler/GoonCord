@@ -98,9 +98,9 @@ export default defineCorePlugin({
                 }
 
                 const [badgesRes, rolesRes] = await Promise.all([
-                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json")
+                    fetch("https://codeberg.org/api/v1/repos/chocomint-chan/GoonCord_Badges/raw/badges.json?ref=main")")
                         .catch((e) => { console.error("[bunny.badges] badges fetch failed:", e); return null; }),
-                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json")
+                    fetch("https://codeberg.org/api/v1/repos/chocomint-chan/GoonCord_Badges/raw/assets/roles/roles.json?ref=main")
                         .catch((e) => { console.error("[bunny.badges] roles fetch failed:", e); return null; }),
                 ]);
 
