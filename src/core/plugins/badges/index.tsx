@@ -44,23 +44,21 @@ const badgesCache = new Map<string, Badge[]>();
 const badgeProps = new Map<string, Record<string, any>>();
 const pendingRequests = new Set<string>();
 
-let equicordData: Record<string, EquicordBadge[]> | null = null;
-
 export default defineCorePlugin({
-    manifest: {
-        id: "bunny.badges",
-        version: "1.2.0",
-        type: "plugin",
-        spec: 3,
-        main: "",
-        display: {
-            name: "Badges",
-            description: "Adds badges to user's profile",
-            authors: [{ name: "cocobo1" }, { name: "pylixonly" }],
-        },
+  manifest: {
+    id: "bunny.badges",
+    version: "1.2.0",
+    type: "plugin",
+    spec: 3,
+    main: "",
+    display: {
+      name: "Badges",
+      description: "Adds badges to user's profile",
+      authors: [{ name: "cocobo1" }, { name: "pylixonly" }],
     },
+  },
 
-    start() {
+  start() {
         onJsxCreate("ProfileBadge", (component, ret) => {
             if (ret.props.id?.startsWith("rain-")) {
                 const cachedProps = badgeProps.get(ret.props.id);
@@ -86,31 +84,18 @@ export default defineCorePlugin({
             pendingRequests.add(userId);
 
             try {
-                // fetch equicord badges once and cache globally
-                if (!equicordData) {
-                    try {
-                        const equicordRes = await fetch("https://badge.equicord.org/badges.json");
-                        if (equicordRes.ok) equicordData = await equicordRes.json();
-                        else console.error("[bunny.badges] equicord HTTP error:", equicordRes.status);
-                    } catch (e) {
-                        console.error("[bunny.badges] equicord fetch failed:", e);
-                    }
-                }
+                const [badgesRes, rolesRes, equicordRes] = await Promise.all([
+    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json"),
+    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json"),
+    fetch("https://badge.equicord.org/badges.json"),
+]);
 
-                const [badgesRes, rolesRes] = await Promise.all([
-                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json")
-                        .catch((e) => { console.error("[bunny.badges] badges fetch failed:", e); return null; }),
-                    fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json")
-                        .catch((e) => { console.error("[bunny.badges] roles fetch failed:", e); return null; }),
-                ]);
-
-                if (badgesRes && !badgesRes.ok) console.error("[bunny.badges] badges HTTP error:", badgesRes.status);
-                if (rolesRes && !rolesRes.ok) console.error("[bunny.badges] roles HTTP error:", rolesRes.status);
-
-                const badgesData: BadgeData = badgesRes?.ok ? await badgesRes.json() : {};
-                const rolesData: RolesData = rolesRes?.ok ? await rolesRes.json() : {};
+                const badgesData: BadgeData = await badgesRes.json();
+                const rolesData: RolesData = await rolesRes.json();
+                const equicordData: Record<string, EquicordBadge[]> = equicordRes.ok ? await equicordRes.json() : {};
 
                 const userBadgeData = badgesData[userId] || { roles: [], custom: [] };
+
                 const allBadges: Badge[] = [];
 
                 // process role badges
@@ -118,7 +103,10 @@ export default defineCorePlugin({
                     userBadgeData.roles.forEach(roleName => {
                         const roleData = rolesData[roleName];
                         if (roleData) {
-                            allBadges.push({ label: roleData.label, url: roleData.url });
+                            allBadges.push({
+                                label: roleData.label,
+                                url: roleData.url,
+                            });
                         }
                     });
                 }
@@ -129,7 +117,7 @@ export default defineCorePlugin({
                 }
 
                 // process equicord badges
-                const equicordUserBadges = equicordData?.[userId] ?? [];
+                const equicordUserBadges = equicordData[userId] ?? [];
                 equicordUserBadges.forEach(b => {
                     allBadges.push({ label: b.tooltip, url: b.badge });
                 });
@@ -167,6 +155,7 @@ export default defineCorePlugin({
 
             cached.forEach((badge, i) => {
                 const badgeId = `rain-${userId}-${i}`;
+
                 result.unshift({
                     id: badgeId,
                     description: badge.label,
