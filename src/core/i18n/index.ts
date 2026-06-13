@@ -156,6 +156,16 @@ export function formatString<T = void>(
     val: Record<string, T>,
 ): FormatStringRet<T> {
     const str = Strings[key];
-    // @ts-ignore
-    return new IntlMessageFormat(str).format(val);
+    if (!str) return str as FormatStringRet<T>;
+    try {
+        // @ts-ignore
+        return new IntlMessageFormat(str).format(val);
+    } catch (e: any) {
+        if (e?.name === "SyntaxError") {
+            logger.warn(`[i18n] Failed to parse message for key "${String(key)}":`, e.message);
+            return str as FormatStringRet<T>;
+        }
+        logger.warn(`[i18n] Failed to format message for key "${String(key)}":`, e?.message ?? e);
+        return str as FormatStringRet<T>;
+    }
 }

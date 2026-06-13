@@ -2,7 +2,6 @@ import { after } from "@lib/api/patcher";
 import { TableRow } from "@metro/common/components";
 import { findByNameLazy, findByPropsLazy } from "@metro/wrappers";
 import { registeredSections } from "@ui/settings";
-import { Strings } from "@core/i18n";
 
 import { CustomPageRenderer, wrapOnPress } from "./shared";
 import { findInReactTree } from "@lib/utils";
@@ -29,9 +28,9 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
             IconComponent: () => <TableRow.Icon source={row.icon} />,
             usePredicate: row.usePredicate,
             useTrailing: row.useTrailing,
+            useTitle: row.title,
             onPress: wrapOnPress(row.onPress, null, row.render, row.title()),
             withArrow: true,
-            ...row.rawTabsConfig,
           },
         })),
       )
@@ -48,6 +47,7 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
       VendettaCustomPage: {
         type: "route",
         title: () => "ShiggyCord",
+        useTitle: () => "ShiggyCord",
         screen: {
           route: "VendettaCustomPage",
           getComponent: () => CustomPageRenderer,
@@ -56,6 +56,7 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
       SHIGGYCORD_CUSTOM_PAGE: {
         type: "route",
         title: () => "ShiggyCord",
+        useTitle: () => "ShiggyCord",
         screen: {
           route: "SHIGGYCORD_CUSTOM_PAGE",
           getComponent: () => CustomPageRenderer,
@@ -64,6 +65,7 @@ export function patchTabsUI(unpatches: (() => void | boolean)[]) {
       BUNNY_CUSTOM_PAGE: {
         type: "route",
         title: () => "ShiggyCord",
+        useTitle: () => "ShiggyCord",
         screen: {
           route: "BUNNY_CUSTOM_PAGE",
           getComponent: () => CustomPageRenderer,
