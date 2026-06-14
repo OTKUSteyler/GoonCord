@@ -88,6 +88,7 @@ export default defineCorePlugin({
     fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json"),
     fetch("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json"),
     fetch("https://badge.equicord.org/badges.json"),
+    fetch("https://badges.vencord.dev/badges/"),                
 ]);
 
                 const badgesData: BadgeData = await badgesRes.json();
