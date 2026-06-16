@@ -38,7 +38,6 @@ export const getCorePlugins = (): CorePluginRecord => ({
   "bunny.favouriteanything": makeLazyPlugin(() => require("./favouriteanything")),
   "bunny.nodelete": makeLazyPlugin(() => require("./nodelete")),
   "bunny.maxverstappen": makeLazyPlugin(() => require("./maxverstappen")),
-  "bunny.lovefemboys": makeLazyPlugin(() => require("./lovefemboys")),
   
   
 });
