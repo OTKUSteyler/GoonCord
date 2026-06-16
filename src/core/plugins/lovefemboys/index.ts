@@ -1,3 +1,4 @@
+import { defineCorePlugin } from "..";
 import { findByProps } from "@vendetta/metro";
 import { storage } from "@vendetta/plugin";
 import { alerts } from "@vendetta/ui";
