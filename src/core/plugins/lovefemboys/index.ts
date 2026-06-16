@@ -1,177 +1,108 @@
-import { defineCorePlugin } from "..";
+import { registerCommand } from "@vendetta/commands";
+import { findByProps } from "@vendetta/metro";
+import { fetchRedditImage } from "./utils";
 
-const findByProps = (...props: string[]) =>
-    (window as any).bunny?.metro?.findByProps(...props) ??
-    (window as any).vendetta?.metro?.findByProps(...props);
-
+const { sendBotMessage } = findByProps("sendBotMessage");
+const messageUtil = findByProps("sendMessage", "editMessage");
 const MessageActions = findByProps("sendMessage", "receiveMessage");
-const Channels = findByProps("getLastSelectedChannelId");
 const BotMessage = findByProps("createBotMessage");
 const Avatars = findByProps("BOT_AVATARS");
 
-// Simple in-memory storage since @vendetta/plugin isn't available in core
-const storage: Record<string, any> = {
-    sortdefs: "hot",
-    nsfwwarn: true,
-};
-
-function showConfirm(title: string, content: string): Promise<boolean> {
-    return new Promise((resolve) => {
-        const UI = findByProps("showConfirmationAlert") ?? findByProps("openAlert");
-        if (UI?.showConfirmationAlert) {
-            UI.showConfirmationAlert({
-                title,
-                content,
-                confirmText: "Yes, Continue",
-                onConfirm: () => resolve(true),
-                cancelText: "Cancel",
-                onCancel: () => resolve(false),
-            });
-        } else {
-            // fallback if alert API unavailable
-            resolve(confirm(`${title}\n\n${content}`));
-        }
-    });
-}
-
-function sendReply(channelID: string, content: string | object, embed: any[]) {
-    const channel = channelID ?? Channels?.getLastSelectedChannelId?.();
-    const msg = BotMessage.createBotMessage({
-        channelId: channel,
-        content: "",
-        embeds: embed,
-    });
+function sendReply(channelId: string, content: string, embeds: any[]) {
+    const msg = BotMessage.createBotMessage({ channelId, content: "", embeds });
     msg.author.username = "Astolfo";
     msg.author.avatar = "Astolfo";
     Avatars.BOT_AVATARS.Astolfo =
         "https://i.pinimg.com/736x/50/77/1f/50771f45b1c015cfbb8b0853ba7b8521.jpg";
-    if (typeof content === "string") {
-        msg.content = content;
-    } else {
-        Object.assign(msg, content);
-    }
-    MessageActions.receiveMessage(channel, msg);
+    if (content) msg.content = content;
+    MessageActions.receiveMessage(channelId, msg);
 }
 
-export default defineCorePlugin({
-    manifest: {
-        id: "lovefemboys",
-        name: "LoveFemboys",
-        version: "1.0.0",
-        description: "Get an image of a femboy via slash command",
-        authors: [],
-    },
-    onLoad() {
-        const { registerCommand } = findByProps("registerCommand");
+const DEFAULT_SORT = "hot";
 
-        this._unregister = registerCommand({
-            name: "lovefemboys",
-            displayName: "lovefemboys",
-            description: "Get an image of a femboy",
-            displayDescription: "Get an image of a femboy",
-            applicationId: "-1",
-            inputType: 1,
-            type: 1,
-            options: [
+const lovefemboys = registerCommand({
+    name: "lovefemboys",
+    displayName: "lovefemboys",
+    description: "Get an image of a femboy",
+    displayDescription: "Get an image of a femboy",
+    options: [
+        {
+            name: "nsfw",
+            displayName: "nsfw",
+            description: "Get the result from r/femboys instead of r/femboy (NSFW)",
+            displayDescription: "Get the result from r/femboys instead of r/femboy (NSFW)",
+            required: false,
+            type: 5,
+        },
+        {
+            name: "sort",
+            displayName: "sort",
+            description: "Changes the way reddit sorts.",
+            displayDescription: "Changes the way reddit sorts",
+            required: false,
+            type: 3,
+        },
+        {
+            name: "silent",
+            displayName: "silent",
+            description: "Makes it so only you can see the message.",
+            displayDescription: "Makes it so only you can see the message.",
+            required: false,
+            type: 5,
+        },
+    ],
+    // @ts-ignore
+    applicationId: "-1",
+    inputType: 1,
+    type: 1,
+    execute: async function (args, ctx) {
+        const options = new Map(args.map((o) => [o.name, o]));
+        const nsfw: boolean = options.get("nsfw")?.value ?? false;
+        const sort: string = options.get("sort")?.value ?? DEFAULT_SORT;
+        const silent: boolean = options.get("silent")?.value ?? true;
+
+        if (!["best", "hot", "new", "rising", "top", "controversial"].includes(sort)) {
+            sendBotMessage(ctx.channel.id, "Incorrect sorting type. Valid options are: `best`, `hot`, `new`, `rising`, `top`, `controversial`.");
+            return;
+        }
+
+        if (nsfw && !ctx.channel.nsfw_) {
+            sendBotMessage(ctx.channel.id, "This channel is not marked as NSFW. Use an NSFW channel instead.");
+            return;
+        }
+
+        const post = await fetchRedditImage(nsfw, sort);
+
+        if (!post) {
+            sendBotMessage(ctx.channel.id, "No image found. Try again later.");
+            return;
+        }
+
+        if (silent) {
+            sendReply(ctx.channel.id, "", [
                 {
-                    name: "nsfw",
-                    displayName: "nsfw",
-                    description: "Get the result from r/femboys instead of r/femboy (NSFW)",
-                    displayDescription: "Get the result from r/femboys instead of r/femboy (NSFW)",
-                    required: false,
-                    type: 5,
+                    type: "rich",
+                    title: post.title,
+                    url: `https://reddit.com${post.permalink}`,
+                    author: {
+                        name: `u/${post.author} • r/${post.subreddit}`,
+                        proxy_icon_url: post.authorIcon,
+                        icon_url: post.authorIcon,
+                    },
+                    image: {
+                        proxy_url: post.url,
+                        url: post.url,
+                        width: post.width,
+                        height: post.height,
+                    },
+                    color: "0xf4b8e4",
                 },
-                {
-                    name: "sort",
-                    displayName: "sort",
-                    description: "Changes the way reddit sorts.",
-                    displayDescription: "Changes the way reddit sorts",
-                    required: false,
-                    type: 3,
-                },
-                {
-                    name: "silent",
-                    displayName: "silent",
-                    description: "Makes it so only you can see the message.",
-                    displayDescription: "Makes it so only you can see the message.",
-                    required: false,
-                    type: 5,
-                },
-            ],
-            execute: async (args: any[], ctx: any) => {
-                try {
-                    const nsfw = args.find((a) => a.name === "nsfw")?.value;
-                    let sort = args.find((a) => a.name === "sort")?.value;
-                    const silent = args.find((a) => a.name === "silent")?.value;
-
-                    if (typeof sort === "undefined") sort = storage.sortdefs;
-                    if (!["best", "hot", "new", "rising", "top", "controversial"].includes(sort)) {
-                        sendReply(ctx.channel.id, "Incorrect sorting type. Valid options are\n`best`, `hot`, `new`, `rising`, `top`, `controversial`.", []);
-                        return;
-                    }
-
-                    if (nsfw) {
-                        const ok = await showConfirm(
-                            "⚠️ NSFW Content Warning",
-                            "This command will send NSFW content from r/femboys. Are you sure you want to continue?"
-                        );
-                        if (!ok) return;
-                    }
-
-                    let response = await fetch(
-                        `https://www.reddit.com/r/femboy${nsfw ? "s" : ""}/${sort}.json?limit=100`
-                    ).then((r) => r.json());
-
-                    if (!ctx.channel.nsfw_ && nsfw && storage.nsfwwarn && !(silent ?? true)) {
-                        sendReply(ctx.channel.id, "This channel is not marked as NSFW.", []);
-                        return;
-                    }
-
-                    response = response.data?.children?.[
-                        Math.floor(Math.random() * response.data?.children?.length)
-                    ]?.data;
-
-                    const author = await fetch(
-                        `https://www.reddit.com/u/${response?.author}/about.json`
-                    ).then((r) => r.json());
-
-                    if (silent ?? true) {
-                        sendReply(ctx.channel.id, "", [
-                            {
-                                type: "rich",
-                                title: response?.title,
-                                url: `https://reddit.com${response?.permalink}`,
-                                author: {
-                                    name: `u/${response?.author} • r/${response?.subreddit}`,
-                                    proxy_icon_url: author?.data.icon_img.split("?")[0],
-                                    icon_url: author?.data.icon_img.split("?")[0],
-                                },
-                                image: {
-                                    proxy_url: response?.url_overridden_by_dest?.replace(/.gifv$/g, ".gif") ?? response?.url?.replace(/.gifv$/g, ".gif"),
-                                    url: response?.url_overridden_by_dest?.replace(/.gifv$/g, ".gif") ?? response?.url?.replace(/.gifv$/g, ".gif"),
-                                    width: response?.preview?.images?.[0]?.source?.width,
-                                    height: response?.preview?.images?.[0]?.source?.height,
-                                },
-                                color: "0xf4b8e4",
-                            },
-                        ]);
-                    } else {
-                        const fixNonce = Date.now().toString();
-                        MessageActions.sendMessage(
-                            ctx.channel.id,
-                            { content: response?.url_overridden_by_dest ?? response?.url },
-                            void 0,
-                            { nonce: fixNonce }
-                        );
-                    }
-                } catch (err) {
-                    console.error("[LoveFemboys] Error:", err);
-                    sendReply(ctx.channel.id, "ERROR !!!!!!!!!!!! 😭😭😭 Check debug logs!! 🥺🥺🥺", []);
-                }
-            },
-        });
-    },
-    onUnload() {
-        this._unregister?.();
+            ]);
+        } else {
+            const fixNonce = Date.now().toString();
+            messageUtil.sendMessage(ctx.channel.id, { content: post.url }, void 0, { nonce: fixNonce });
+        }
     },
 });
+
+export default lovefemboys;
