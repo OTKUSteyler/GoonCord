@@ -70,11 +70,12 @@ export default function About() {
             version: debugInfo.device.model,
             icon: "MobilePhoneIcon"
         },
-        {
+        // this is renamed now on android but i cant be bothered to find it
+        ...(Platform.OS !== "android" ? [{
             label: Platform.select({ android: Strings.CODENAME, ios: Strings.MODELID })!,
             version: debugInfo.device.codename,
             icon: "TagIcon"
-        }
+        }] : []),
     ];
 
     return (
