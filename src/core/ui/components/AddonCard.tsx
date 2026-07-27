@@ -20,6 +20,7 @@ const useStyles = createStyles({
         padding: 0,
     },
     headerLeading: {
+        flex: 1,
         flexDirection: "column",
         justifyContent: "center",
         scale: 1.2
@@ -31,16 +32,18 @@ const useStyles = createStyles({
         alignItems: "center"
     },
     headerLabel: {
-        ...TextStyleSheet["heading-md/semibold"],
-        color: semanticColors.MOBILE_TEXT_HEADING_PRIMARY,
+        ...TextStyleSheet["heading-lg/semibold"],
+    },
+    headerLabelCompact: {
+        ...TextStyleSheet["text-md/semibold"],
     },
     headerSubtitle: {
-        ...TextStyleSheet["text-md/semibold"],
+        ...TextStyleSheet["text-sm/semibold"],
         color: semanticColors.TEXT_MUTED,
     },
     descriptionLabel: {
         ...TextStyleSheet["text-md/semibold"],
-        color: semanticColors.TEXT_NORMAL,
+        color: "text-strong",
     },
     actions: {
         flexDirection: "row-reverse",
@@ -48,7 +51,7 @@ const useStyles = createStyles({
         gap: 5
     },
     iconStyle: {
-        tintColor: semanticColors.INTERACTIVE_ICON_DEFAULT,
+        tintColor: semanticColors.LOGO_PRIMARY,
         opacity: 0.2,
         height: 64,
         width: 64,
