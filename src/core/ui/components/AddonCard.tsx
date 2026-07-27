@@ -23,52 +23,54 @@ const { showSimpleActionSheet } = lazyDestructure(() =>
 
 // TODO: These styles work weirdly. Low DPI Has cramped text. Fix?
 const useStyles = createStyles({
-  card: {
-    backgroundColor: semanticColors?.CARD_SECONDARY_BG,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  header: {
-    padding: 0,
-  },
-  headerLeading: {
-    flexDirection: "column",
-    justifyContent: "center",
-    flexShrink: 1,
-    scale: 1.2,
-  },
-  headerTrailing: {
-    display: "flex",
-    flexDirection: "row",
-    gap: 15,
-    alignItems: "center",
-  },
-  headerLabel: {
-    ...TextStyleSheet["heading-md/semibold"],
-    color: semanticColors.MOBILE_TEXT_HEADING_PRIMARY,
-  },
-  headerSubtitle: {
-    ...TextStyleSheet["text-md/semibold"],
-    color: semanticColors.TEXT_MUTED,
-  },
-  descriptionLabel: {
-    ...TextStyleSheet["text-md/semibold"],
-    color: semanticColors.TEXT_NORMAL,
-  },
-  actions: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 5,
-  },
-  iconStyle: {
-    tintColor: semanticColors.INTERACTIVE_ICON_DEFAULT,
-    opacity: 0.2,
-    height: 64,
-    width: 64,
-    left: void 0,
-    right: "30%",
-    top: "-10%",
-  },
+    card: {
+        backgroundColor: semanticColors?.CARD_SECONDARY_BG,
+        borderRadius: 12,
+        overflow: "hidden"
+    },
+    header: {
+        padding: 0,
+    },
+    headerLeading: {
+        flex: 1,
+        flexDirection: "column",
+        justifyContent: "center",
+        scale: 1.2
+    },
+    headerTrailing: {
+        display: "flex",
+        flexDirection: "row",
+        gap: 15,
+        alignItems: "center"
+    },
+    headerLabel: {
+        ...TextStyleSheet["heading-lg/semibold"],
+    },
+    headerLabelCompact: {
+        ...TextStyleSheet["text-md/semibold"],
+    },
+    headerSubtitle: {
+        ...TextStyleSheet["text-sm/semibold"],
+        color: semanticColors.TEXT_MUTED,
+    },
+    descriptionLabel: {
+        ...TextStyleSheet["text-md/semibold"],
+        color: "text-strong",
+    },
+    actions: {
+        flexDirection: "row-reverse",
+        alignItems: "center",
+        gap: 5
+    },
+    iconStyle: {
+        tintColor: semanticColors.LOGO_PRIMARY,
+        opacity: 0.2,
+        height: 64,
+        width: 64,
+        left: void 0,
+        right: "30%",
+        top: "-10%"
+    }
 });
 
 interface Action {
