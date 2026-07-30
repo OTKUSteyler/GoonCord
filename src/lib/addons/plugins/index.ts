@@ -752,27 +752,54 @@ export async function updatePlugins() {
       }),
     );
   }
+
+  const enabledIds = [...registeredPlugins.keys()].filter(
+    (id) => isPluginEnabled(id) && !pluginInstances.has(id),
+  );
+  await Promise.allSettled(
+    enabledIds.map(async (id) => {
+      try {
+        await startPlugin(id).catch((e) => {
+          console.error(`Failed to start plugin ${id}:`, e);
+        });
+      } catch (error) {
+        console.error(`Unexpected error while starting plugin ${id}:`, error);
+      }
+    }),
+  );
 }
 
 /**
- * Initialize plugins but stagger startup to avoid CPU spikes during app start.
+ * Register all installed plugins from local storage manifests without any
+ * network fetch. This lets initPlugins() start plugins immediately using
+ * previously-cached scripts, keeping startup snappy.
  *
- * This replaces the original "start all enabled plugins in parallel" approach
- * with a configurable staggered startup: plugins are started in small batches and
- * we await a small interval between batches. This reduces short-lived CPU and I/O contention
- * that causes jank on low-end devices.
- *
- * Backwards-compatible: callers can still call initPlugins() with no arguments.
- *
- * Options:
- * - staggerInterval (ms) - wait time between batches (default: 100)
- * - batchSize - how many plugins to start concurrently in a single batch (default: 3)
+ * Safe to call multiple times — skips already-registered plugins.
  */
-export async function initPlugins(
-  options: { staggerInterval?: number; batchSize?: number } = {},
-) {
-  const { staggerInterval = 100, batchSize = 3 } = options;
+export async function registerInstalledPlugins() {
+  await awaitStorage(pluginRepositories, pluginSettings);
 
+  const ids = Object.keys(pluginSettings ?? {});
+  if (ids.length === 0) return;
+
+  // Load all manifest files from local storage in parallel.
+  const results = await Promise.allSettled(
+    ids.map(async (id) => {
+      if (registeredPlugins.has(id) || isCorePlugin(id)) return;
+      const loaded = await preloadStorageIfExists(`plugins/manifests/${id}.json`);
+      if (loaded) {
+        const manifest = getPreloadedStorage<t.BunnyPluginManifest>(
+          `plugins/manifests/${id}.json`,
+        );
+        if (manifest) {
+          registeredPlugins.set(id, manifest);
+        }
+      }
+    }),
+  );
+}
+
+export async function initPlugins() {
   // Ensure core plugins are registered prior to any plugin startup logic so
   // settings pages and UI that read registered/core plugins show them.
   // registerCorePlugins is synchronous and idempotent, but call it here as a
@@ -784,6 +811,7 @@ export async function initPlugins(
   }
 
   await awaitStorage(pluginRepositories, pluginSettings);
+  await registerInstalledPlugins();
 
   // Collect enabled plugin ids
   const enabledIds = [...registeredPlugins.keys()].filter((id) =>
@@ -792,32 +820,18 @@ export async function initPlugins(
 
   if (enabledIds.length === 0) return;
 
-  // Helper sleep
-  const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
-
-  // Start plugins in batches to avoid starting all at once.
-  for (let i = 0; i < enabledIds.length; i += batchSize) {
-    const batch = enabledIds.slice(i, i + batchSize);
-
-    // Start the batch in parallel but don't let exceptions bubble to halt everything.
-    await Promise.allSettled(
-      batch.map(async (id) => {
-        try {
-          // Only attempt to start if still enabled and not already started
-          if (!isPluginEnabled(id) || pluginInstances.has(id)) return;
-          await startPlugin(id).catch((e) => {
-            // startPlugin may throw; ensure it doesn't crash the whole batch
-            console.error(`Failed to start plugin ${id}:`, e);
-          });
-        } catch (error) {
-          console.error(`Unexpected error while starting plugin ${id}:`, error);
-        }
-      }),
-    );
-
-    // If there are more plugins to start, wait before starting the next batch.
-    if (i + batchSize < enabledIds.length) {
-      await sleep(staggerInterval);
-    }
-  }
+  // Start all enabled plugins in parallel
+  await Promise.allSettled(
+    enabledIds.map(async (id) => {
+      try {
+        // Only attempt to start if still enabled and not already started
+        if (!isPluginEnabled(id) || pluginInstances.has(id)) return;
+        await startPlugin(id).catch((e) => {
+          console.error(`Failed to start plugin ${id}:`, e);
+        });
+      } catch (error) {
+        console.error(`Unexpected error while starting plugin ${id}:`, error);
+      }
+    }),
+  );
 }

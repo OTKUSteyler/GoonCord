@@ -11,13 +11,8 @@ import { injectFluxInterceptor } from "@lib/api/flux";
 import { patchJsx } from "@lib/api/react/jsx";
 import { logger } from "@lib/utils/logger";
 import { patchSettings } from "@ui/settings";
-import { updaterSettings } from "@lib/api/settings";
 import { InteractionManager } from "react-native";
 import { getDebugInfo, initDebugger } from "@lib/api/debug";
-
-// Debug toggle helper (temporary runtime fallback). The helper is dynamically
-// imported when needed (to avoid bundling it permanently) and removed after use.
-
 import * as lib from "./lib";
 import { timings } from "@lib/utils/timings";
 
@@ -66,52 +61,19 @@ export default async () => {
     const { VdPluginManager } = await import("@core/vendetta/plugins");
     const { initPlugins, updatePlugins } = await import("@lib/addons/plugins");
 
-    // Initialize Vendetta plugins (may start many plugins) — do not block UI.
-    VdPluginManager.initPlugins()
-      .then((u) => lib.unload.push(u))
-      .catch((e) => logger.log("Vendetta init failed:", e));
+    await Promise.all([
+      VdPluginManager.initPlugins()
+        .then((u) => u && lib.unload.push(u))
+        .catch((e) => logger.log("Vendetta init failed:", e)),
+      initPlugins()
+        .catch((e) => logger.log("initPlugins failed:", e)),
+    ]);
 
-    // Start ShiggyCord (Bunny) plugins now without forcing repository updates.
-    // Plugin repository fetching is deferred so the app can finish launching first.
-    // Stagger plugin startup to reduce CPU/memory spikes: use smaller batches and a small interval.
-    // This keeps the UI responsive while plugins initialize in the background.
-    initPlugins({ staggerInterval: 500, batchSize: 2 });
-
-    // Attempt a lightweight recovery toggle if some core plugins failed to start.
-    try {
-      // Dynamically import the helper (if present) but suppress verbose errors.
-      const mod = await import("@core/debug/toggleCorePlugins").catch(
-        () => null,
-      );
-      if (mod?.default) {
-        // Run helper with minimal noise; ignore failures.
-        mod.default({ offDuration: 1500 }).catch(() => {});
-      }
-
-      // Try to remove the helper source file (best-effort, ignore failures).
-      await import("@lib/api/native/fs")
-        .then((fs) => fs.removeFile("src/core/debug/toggleCorePlugins.ts"))
-        .catch(() => {});
-    } catch {
-      // suppressed
-    }
+    updatePlugins()
+      .catch((e) => logger.log("updatePlugins failed:", e));
 
     // Update fonts in background
     updateFonts().catch((e) => logger.log("updateFonts failed:", e));
-
-    // Schedule plugin repository update after a delay (5 minutes) so update work
-    // does not impact initial launch performance.
-    setTimeout(
-      () => {
-        updatePlugins().catch((e) =>
-          logger.log("updatePlugins failed (deferred 5min):", e),
-        );
-      },
-      5 * 60 * 1000,
-    );
-
-    // Note: we intentionally moved the call to `updatePlugins()` above so core
-    // plugins are registered prior to calling `initPlugins()`.
   };
 
   // Preferred: wait until interactions finish (animations / navigation).
