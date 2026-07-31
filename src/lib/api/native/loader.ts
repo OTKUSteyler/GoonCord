@@ -10,6 +10,9 @@ const rainLoaderIdentity = globalThis.__RAIN_LOADER__;
 // @ts-ignore
 const vendettaLoaderIdentity = globalThis.__vendetta_loader;
 
+// @ts-ignore
+const shiggyLoaderIdentity = globalThis.__SHIGGY_LOADER__;
+
 export interface VendettaLoaderIdentity {
     name: string;
     features: {
@@ -34,6 +37,10 @@ export function isPyonLoader() {
 
 export function isRa1nLoader() {
     return rainLoaderIdentity != null;
+}
+
+export function isShiggyLoader() {
+    return shiggyLoaderIdentity != null;
 }
 
 function polyfillVendettaLoaderIdentity() {
@@ -98,6 +105,8 @@ export function getLoaderIdentity() {
         return getVendettaLoaderIdentity();
     } else if (isRa1nLoader()) {
         return rainLoaderIdentity();
+    } else if (isShiggyLoader()) {
+        return shiggyLoaderIdentity;
     }
 
     return null;
@@ -116,6 +125,7 @@ export function getLoaderName() {
     if (isPyonLoader()) return pyonLoaderIdentity.loaderName;
     else if (isRa1nLoader()) return rainLoaderIdentity.loadername;
     else if (isVendettaLoader()) return vendettaLoaderIdentity.name;
+    else if (isShiggyLoader()) return shiggyLoaderIdentity.loaderName;
 
     return "Unknown";
 }
@@ -123,6 +133,7 @@ export function getLoaderName() {
 export function getLoaderVersion(): string | null {
     if (isPyonLoader()) return pyonLoaderIdentity.loaderVersion;
     else if (isRa1nLoader()) return rainLoaderIdentity.loaderVersion;
+    else if (isShiggyLoader()) return shiggyLoaderIdentity.loaderVersion;
     return null;
 }
 
@@ -144,7 +155,9 @@ export function isThemeSupported() {
     } else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.themes != null;
     } else if (isRa1nLoader()) {
-        return false; // Ra1n has theme support disabled, this is here just to make sure it doesnt think it does
+        return false; // Rain has theme support disabled, this is here just to make sure it doesnt think it does
+    } else if (isShiggyLoader()) {
+        return shiggyLoaderIdentity.hasThemeSupport;
     }
 
     return false;
@@ -158,6 +171,8 @@ export function getStoredTheme(): VdThemeInfo | null {
         if (!themeProp) return null;
         // @ts-ignore
         return globalThis[themeProp] || null;
+    } else if (isShiggyLoader()) {
+        return shiggyLoaderIdentity.storedTheme || null;
     }
 
     return null;
@@ -168,6 +183,8 @@ export function getThemeFilePath() {
         return "pyoncord/current-theme.json";
     } else if (isVendettaLoader()) {
         return "vendetta_theme.json";
+    } else if (isShiggyLoader()) {
+        return "ShiggyCord/current-theme.json";
     }
 
     return null;
@@ -241,6 +258,7 @@ export function getLoaderConfigPath() {
 
 export function isFontSupported() {
     if (isPyonLoader()) return pyonLoaderIdentity.fontPatch === 2;
+    else if (isShiggyLoader()) return shiggyLoaderIdentity.fontPatch === 2;
 
     return false;
 }

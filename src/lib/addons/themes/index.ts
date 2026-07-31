@@ -141,7 +141,7 @@ export function getCurrentTheme() {
  * @internal
  */
 export function getThemeFromLoader(): VdThemeInfo | null {
-    return getStoredTheme();
+    return getStoredTheme() ?? getCurrentTheme();
 }
 
 /**
@@ -157,6 +157,7 @@ export async function initThemes() {
         }
 
         await newAwaitStorage(colorsPref);
+        await awaitStorage(themes);
 
         const currentTheme = getThemeFromLoader();
         initColors(currentTheme?.data ?? null);
