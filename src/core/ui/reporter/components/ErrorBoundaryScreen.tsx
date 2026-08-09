@@ -19,7 +19,6 @@ import {
   TableSwitchRow,
   Stack,
 } from "@metro/common/components";
-import { semanticColors } from "@ui/color";
 import { ScrollView, View } from "react-native";
 
 import ErrorComponentStackCard from "./ErrorComponentStackCard";
@@ -74,8 +73,8 @@ export default function ErrorBoundaryScreen(props: {
         <ScrollView fadingEdgeLength={64} contentContainerStyle={{ gap: 12 }}>
           <Text
             variant="heading-md/extrabold"
+            color="text-default"
             style={{
-              color: semanticColors.HEADER_PRIMARY,
               marginBottom: 8,
               textAlign: "center",
             }}
