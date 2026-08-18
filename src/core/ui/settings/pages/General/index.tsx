@@ -144,7 +144,7 @@ export default function General() {
             subLabel={`${debugInfo.bunny.loader.name} loader`}
             icon={<TableRow.Icon source={findAssetId("DownloadIcon")} />}
             trailing={
-              <TableRow.TrailingText text={debugInfo.bunny.loader.version} />
+              <TableRow.TrailingText text={debugInfo.bunny.loader.version ?? ""} />
             }
           />
         </TableRowGroup>

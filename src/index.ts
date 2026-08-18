@@ -1,4 +1,6 @@
+import patchAnimatedValue from "@core/debug/patches/patchAnimatedValue";
 import patchErrorBoundary from "@core/debug/patches/patchErrorBoundary";
+import patchSafeCard from "@core/debug/patches/patchSafeCard";
 import initFixes from "@core/fixes";
 import { initFetchI18nStrings } from "@core/i18n";
 import initSettings from "@core/ui/settings";
@@ -30,6 +32,8 @@ export default async () => {
     ["patchCommands", () => patchCommands()],
     ["patchJsx", () => patchJsx()],
     ["patchErrorBoundary", () => patchErrorBoundary()],
+    ["patchAnimatedValue", () => patchAnimatedValue()],
+    ["patchSafeCard", () => patchSafeCard()],
     ["initVendettaObject", () => initVendettaObject()],
     ["initFetchI18nStrings", () => initFetchI18nStrings()],
     ["initSettings", () => initSettings()],
