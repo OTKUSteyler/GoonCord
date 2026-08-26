@@ -118,12 +118,14 @@ const Actions = () => {
         variant="secondary"
         icon={findAssetId("SettingsIcon")}
         disabled={!plugin.getPluginSettingsComponent()}
-        onPress={() =>
+        onPress={() => {
+          const SettingsComponent = plugin.getPluginSettingsComponent();
+          if (!SettingsComponent) return;
           navigation.push("SHIGGYCORD_CUSTOM_PAGE", {
             title: plugin.name,
-            render: plugin.getPluginSettingsComponent(),
-          })
-        }
+            render: () => <SettingsComponent />,
+          });
+        }}
       />
       <IconButton
         size="sm"

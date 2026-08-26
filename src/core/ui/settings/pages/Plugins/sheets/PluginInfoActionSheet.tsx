@@ -197,9 +197,11 @@ export default function PluginInfoActionSheet({
             disabled={!plugin.getPluginSettingsComponent()}
             icon={findAssetId("SettingsIcon")}
             onPress={() => {
+              const SettingsComponent = plugin.getPluginSettingsComponent();
+              if (!SettingsComponent) return;
               navigation.push("SHIGGYCORD_CUSTOM_PAGE", {
                 title: plugin.name,
-                render: plugin.getPluginSettingsComponent(),
+                render: () => <SettingsComponent />,
               });
             }}
           />

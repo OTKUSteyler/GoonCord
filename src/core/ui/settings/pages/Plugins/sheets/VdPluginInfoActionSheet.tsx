@@ -48,7 +48,7 @@ export default function PluginInfoActionSheet({
                   hideSheet("PluginInfoActionSheet");
                   navigation.push("SHIGGYCORD_CUSTOM_PAGE", {
                     title: plugin.name,
-                    render: SettingsComponent,
+                    render: () => <SettingsComponent />,
                   });
                 }}
               />
