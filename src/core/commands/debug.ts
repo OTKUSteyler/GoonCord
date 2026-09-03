@@ -24,7 +24,7 @@ export default () =>
         else{ info.device.codename = "(" + info.device.codename + ")" }
 
         const content = [
-            "**GoonCord Debug Info**",
+            "**💦GoonCord💦 Debug Info**",
             `> GoonCord: ${info.bunny.version} (${info.bunny.loader.name} ${info.bunny.loader.version})`,
             `> Discord: ${info.discord.version} (${info.discord.build})`,
             `> React: ${info.react.version} (RN ${info.react.nativeVersion})`,
