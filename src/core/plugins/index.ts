@@ -38,7 +38,7 @@ export const getCorePlugins = (): CorePluginRecord => ({
   "bunny.favouriteanything": makeLazyPlugin(() => require("./favouriteanything")),
   "bunny.nodelete": makeLazyPlugin(() => require("./nodelete")),
   "bunny.maxverstappen": makeLazyPlugin(() => require("./maxverstappen")),
-  "bunny.backgroundmusic": makeLazyPlugin(() => require("./custom background music")),
+  "bunny.backgroundmusic": makeLazyPlugin(() => require("./CustomBackgroundMusic")),
   
   
 });
