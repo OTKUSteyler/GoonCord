@@ -1,55 +1,65 @@
 import { findByProps } from "@vendetta/metro";
-import { React, ReactNative } from "@vendetta/metro/common";
+import { ReactNative } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
-import { before } from "@vendetta/patcher";
 import Settings from "./Settings";
 import { defineCorePlugin } from "..";
 
-const { ImageBackground } = ReactNative;
+const { DCDSoundManager } = ReactNative.NativeModules;
 
-export const settings: {
-    backgroundUrl?: string;
-    opacity?: number;
-    blur?: number;
-} = storage;
+export const settings: { url?: string } = storage;
 
-let unpatch: (() => void) | undefined;
+const SOUND_ID = 6973;
 
-// Locate the root view that wraps the app's main content.
-// This is the part most likely to need adjusting for GoonCord specifically —
-// Vendetta-family clients usually expose something like this via findByProps,
-// but the exact export name can differ between forks.
-const AppContainer = findByProps("AppContainer") ?? findByProps("MainTabsView");
+let isPlaying = false;
+let loopTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let currentUrl: string | null = null;
 
-function applyBackground() {
-    if (!AppContainer) return;
-
-    unpatch = before("default", AppContainer, (args) => {
-        const url = settings.backgroundUrl;
-        if (!url) return;
-
-        const original = args[0]?.children;
-        args[0].children = React.createElement(
-            ImageBackground,
-            {
-                source: { uri: url },
-                style: { flex: 1 },
-                imageStyle: { opacity: settings.opacity ?? 0.3 },
-                blurRadius: settings.blur ?? 0,
-            },
-            original
-        );
+function prepareSound(url: string): Promise<number> {
+    return new Promise((resolve) => {
+        DCDSoundManager.prepare(url, "music", SOUND_ID, (error: any, sound: any) => {
+            if (error) return resolve(-1);
+            resolve(sound?.duration ?? -1);
+        });
     });
+}
+
+function stopLoop() {
+    isPlaying = false;
+    if (loopTimeoutId) {
+        clearTimeout(loopTimeoutId);
+        loopTimeoutId = null;
+    }
+    DCDSoundManager.stop(SOUND_ID);
+}
+
+// Exported so Settings.tsx can call this the moment the URL changes
+export async function playFromUrl(url: string) {
+    if (!url) return;
+
+    stopLoop();
+    currentUrl = url;
+
+    const duration = await prepareSound(url);
+    if (duration === -1 || currentUrl !== url) return;
+
+    isPlaying = true;
+
+    const cycle = async () => {
+        if (!isPlaying || currentUrl !== url) return;
+        await DCDSoundManager.play(SOUND_ID);
+        loopTimeoutId = setTimeout(cycle, duration);
+    };
+
+    cycle();
 }
 
 export default {
     onLoad: () => {
-        settings.opacity ??= 0.3;
-        settings.blur ??= 0;
-        applyBackground();
+        if (settings.url) playFromUrl(settings.url);
     },
     onUnload: () => {
-        unpatch?.();
+        stopLoop();
+        currentUrl = null;
     },
     settings: Settings,
 };
