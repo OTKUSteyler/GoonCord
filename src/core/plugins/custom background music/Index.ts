@@ -3,6 +3,7 @@ import { React, ReactNative } from "@vendetta/metro/common";
 import { storage } from "@vendetta/plugin";
 import { before } from "@vendetta/patcher";
 import Settings from "./Settings";
+import { defineCorePlugin } from "..";
 
 const { ImageBackground } = ReactNative;
 
