@@ -1,133 +1,92 @@
-import { awaitStorage, createMemoryBackend, createStorage, wrapSync } from "@core/vendetta/storage";
-import { clearFolder, downloadFile, fileExists, removeFile, writeFile } from "@lib/api/native/fs";
-import { safeFetch } from "@lib/utils";
-
-type FontMap = Record<string, string>;
-
-export type FontDefinition = {
-    spec: 1;
-    name: string;
-    description?: string;
-    main: FontMap;
-    source?: string
-}
-
-type FontStorage = Record<string, FontDefinition> & { __selected?: string; };
-
-// Use a memory-backed storage for faster startup; persistence is still written back to disk
-export const fonts = wrapSync(createStorage<FontStorage>(createMemoryBackend("BUNNY_FONTS", {})));
-
-async function writeFont(font: FontDefinition | null) {
-    if (!font && font !== null) throw new Error("Arg font must be a valid object or null");
-    if (font) {
-        await writeFile("fonts.json", JSON.stringify(font));
-    } else {
-        await removeFile("fonts.json");
-    }
-}
-
-export function validateFont(font: FontDefinition) {
-    if (!font || typeof font !== "object") throw new Error("URL returned a null/non-object JSON");
-    if (typeof font.spec !== "number") throw new Error("Invalid font 'spec' number");
-    if (font.spec !== 1) throw new Error("Only fonts which follows spec:1 are supported");
-    const requiredFields = ["name", "main"] as const;
-    if (requiredFields.some(f => !font[f])) throw new Error(`Font is missing one of the fields: ${requiredFields}`);
-    if (font.name.startsWith("__")) throw new Error("Font names cannot start with __");
-    if (font.name in fonts) throw new Error(`There is already a font named '${font.name}' installed`);
-}
-
-export async function saveFont(data: string | FontDefinition, selected = false) {
-    let fontDefJson: FontDefinition;
-    if (typeof data === "string") {
-        try {
-            fontDefJson = await (await safeFetch(data)).json();
-        } catch (e) {
-            throw new Error(`Failed to fetch fonts at ${data}`, { cause: e });
-        }
-    } else {
-        fontDefJson = data;
-    }
-
-    validateFont(fontDefJson);
-
-    const errors = await Promise.allSettled(Object.entries(fontDefJson.main).map(async ([font, url]) => {
-        let ext = url.split(".").pop();
-        if (ext !== "ttf" && ext !== "otf") ext = "ttf";
-        const path = `downloads/fonts/${fontDefJson.name}/${font}.${ext}`;
-        if (!await fileExists(path)) await downloadFile(url, path);
-    })).then(it => it.map(it => it.status === 'fulfilled' ? undefined : it.reason));
-
-    if (errors.some(it => it)) throw errors
-
-    fonts[fontDefJson.name] = fontDefJson;
-    if (selected) writeFont(fonts[fontDefJson.name]);
-
-    return fontDefJson;
-}
-
-export async function updateFont(fontDef: FontDefinition) {
-    let fontDefCopy = { ...fontDef }
-    if (fontDefCopy.source) fontDefCopy = {
-        ...await fetch(fontDefCopy.source).then(it => it.json()),
-        // Can't change these properties
-        name: fontDef.name,
-        source: fontDef.source
-    }
-
-    const selected = fonts.__selected === fontDef.name
-    await removeFont(fontDef.name)
-    await saveFont(fontDefCopy, selected)
-}
-
-export async function installFont(url: string, selected = false) {
-    const font = await saveFont(url);
-    if (selected) await selectFont(font.name);
-}
-
-export async function selectFont(name: string | null) {
-    if (name && !(name in fonts)) throw new Error("Selected font does not exist!");
-    if (name) {
-        fonts.__selected = name;
-    } else {
-        delete fonts.__selected;
-    }
-    await writeFont(name == null ? null : fonts[name]);
-}
-
-export async function removeFont(name: string) {
-    const selected = fonts.__selected === name;
-    if (selected) await selectFont(null);
-    delete fonts[name];
-    try {
-        await clearFolder(`downloads/fonts/${name}`);
-    } catch {
-        // ignore
-    }
-}
-
-export async function updateFonts() {
-    await awaitStorage(fonts);
-    Promise.allSettled(
-        Object.keys(fonts).map(
-            name => saveFont(fonts[name], fonts.__selected === name)
-        )
-    );
-}
+import patchErrorBoundary from "@core/debug/patches/patchErrorBoundary";
+import initFixes from "@core/fixes";
+import { initFetchI18nStrings } from "@core/i18n";
+import initSettings from "@core/ui/settings";
+import { initVendettaObject } from "@core/vendetta/api";
+import { updateFonts } from "@lib/addons/fonts";
+import { initThemes } from "@lib/addons/themes";
+import { patchCommands } from "@lib/api/commands";
+import { patchLogHook } from "@lib/api/debug";
+import { injectFluxInterceptor } from "@lib/api/flux";
+import { patchJsx } from "@lib/api/react/jsx";
+import { logger } from "@lib/utils/logger";
+import { patchSettings } from "@ui/settings";
+import { InteractionManager } from "react-native";
+import { getDebugInfo, initDebugger } from "@lib/api/debug";
+import * as lib from "./lib";
+import { timings } from "@lib/utils/timings";
 
 /**
- * @internal
+ * Start sequence split into critical (UI) and deferred (network/plugin) work.
+ * The goal is to get the UI ready quickly and run heavy tasks after interactions.
  */
-export async function initFonts() {
-    await awaitStorage(fonts);
+export default async () => {
+  // Wrap critical initializers as named functions so we can instrument each.
+  const criticalInitFns: Array<[string, () => Promise<any>]> = [
+    ["initThemes", () => initThemes()],
+    ["injectFluxInterceptor", () => injectFluxInterceptor()],
+    ["patchSettings", () => patchSettings()],
+    ["patchLogHook", () => patchLogHook()],
+    ["patchCommands", () => patchCommands()],
+    ["patchJsx", () => patchJsx()],
+    ["patchErrorBoundary", () => patchErrorBoundary()],
+    ["initVendettaObject", () => initVendettaObject()],
+    ["initFetchI18nStrings", () => initFetchI18nStrings()],
+    ["initSettings", () => initSettings()],
+    ["initFixes", () => initFixes()],
+    ["initDebugger", () => initDebugger()],
+  ];
 
-    const selectedName = fonts.__selected;
-    if (selectedName && selectedName in fonts) {
-        try {
-            await writeFont(fonts[selectedName]);
-        } catch (e) {
-            console.error("Failed to apply selected font on init", e);
-        }
-    }
+  // Run critical inits with timing instrumentation and collect unpatchers/cleanup handlers.
+  await Promise.all(
+    criticalInitFns.map(([name, fn]) =>
+      timings.measureAsync(`critical:${name}`, async () => fn()),
+    ),
+  )
+    .then((u) => u.forEach((f) => f && lib.unload.push(f)))
+    .catch((e) => {
+      // Log but don't abort — critical inits failing should be visible in logs.
+      console.warn("Critical initialization error:", e);
+    });
 
-    updateFonts().catch(e => console.error("Failed to update fonts", e));
-}
+  // Expose the library object early so UI and other code can access window.bunny.
+  window.bunny = lib;
+
+  logger.log(
+    "ShiggyCord: UI-critical initialization complete — deferring plugin & network work",
+  );
+
+  // Deferred work: run after interactions to avoid blocking initial paint and navigation.
+  const runDeferred = async () => {
+    const { VdPluginManager } = await import("@core/vendetta/plugins");
+    const { initPlugins, updatePlugins } = await import("@lib/addons/plugins");
+
+    await Promise.all([
+      VdPluginManager.initPlugins()
+        .then((u) => u && lib.unload.push(u))
+        .catch((e) => logger.log("Vendetta init failed:", e)),
+      initPlugins()
+        .catch((e) => logger.log("initPlugins failed:", e)),
+    ]);
+
+    updatePlugins()
+      .catch((e) => logger.log("updatePlugins failed:", e));
+
+    // Update fonts in background
+    updateFonts().catch((e) => logger.log("updateFonts failed:", e));
+  };
+
+  // Preferred: wait until interactions finish (animations / navigation).
+  try {
+    InteractionManager.runAfterInteractions(() => {
+      // small delay to ensure native lifecycle settled
+      setTimeout(runDeferred, 50);
+    });
+  } catch (e) {
+    // Fallback if InteractionManager isn't available for any reason.
+    setTimeout(runDeferred, 200);
+  }
+
+  // Final ready log for basic UI availability.
+  logger.log("ShiggyCord is ready.");
+};
