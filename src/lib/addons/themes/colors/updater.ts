@@ -4,8 +4,6 @@ import { findByProps, findByPropsLazy, findByStoreNameLazy } from "@metro";
 import { parseColorManifest } from "./parser";
 import { ColorManifest, InternalColorDefinition } from "./types";
 
-const tokenRef = findByProps("SemanticColor");
-const origRawColor = { ...tokenRef.RawColor };
 const AppearanceManager = findByPropsLazy("updateTheme");
 const ThemeStore = findByStoreNameLazy("ThemeStore");
 const FormDivider = findByPropsLazy("DIVIDER_COLORS");
@@ -23,63 +21,85 @@ interface InternalColorRef {
 export const _colorRef: InternalColorRef = {
     current: null,
     key: `bn-theme-${_inc}`,
-    origRaw: origRawColor,
-    lastSetDiscordTheme: "darker"
+    origRaw: {},
+    lastSetDiscordTheme: "dark"
 };
 
 export function updateBunnyColor(colorManifest: ColorManifest | null, { update = true }) {
     if (settings.safeMode?.enabled) return;
 
+    const tokenRef = findByProps("SemanticColor");
+    if (tokenRef?.RawColor && Object.keys(_colorRef.origRaw).length === 0) {
+        Object.assign(_colorRef.origRaw, tokenRef.RawColor);
+    }
+
     const internalDef = colorManifest ? parseColorManifest(colorManifest) : null;
+    const currentThemeName = ThemeStore?.theme ?? "dark";
     const ref = Object.assign(_colorRef, {
         current: internalDef,
-        key: `bn-theme-${++_inc}`,
-        lastSetDiscordTheme: !ThemeStore.theme.startsWith("bn-theme-")
-            ? ThemeStore.theme
+        key: `bn-theme-${++_inc}` as const,
+        lastSetDiscordTheme: !currentThemeName.startsWith("bn-theme-")
+            ? currentThemeName
             : _colorRef.lastSetDiscordTheme
     });
 
-    if (internalDef != null) {
-        // Register the synthetic key BEFORE calling native, and verify it actually
-        // landed in every table native reads from. If any registration step fails,
-        // bail out to a known-good theme instead of handing native an unknown key.
+    if (internalDef != null && tokenRef) {
         try {
-            tokenRef.Theme[ref.key.toUpperCase()] = ref.key;
-
-            if (!FormDivider.DIVIDER_COLORS[ref.current!.reference]) {
-                throw new Error(`Missing divider color reference: ${ref.current!.reference}`);
+            if (tokenRef.Theme) {
+                tokenRef.Theme[ref.key.toUpperCase()] = ref.key;
             }
-            FormDivider.DIVIDER_COLORS[ref.key] = FormDivider.DIVIDER_COLORS[ref.current!.reference];
 
-            Object.keys(tokenRef.Shadow).forEach(k => {
-                if (!(ref.current!.reference in tokenRef.Shadow[k])) {
-                    throw new Error(`Missing shadow reference: ${ref.current!.reference}`);
-                }
-                tokenRef.Shadow[k][ref.key] = tokenRef.Shadow[k][ref.current!.reference];
-            });
+            const targetRef = ref.current?.reference ?? "dark";
 
-            Object.keys(tokenRef.SemanticColor).forEach(k => {
-                if (!(ref.current!.reference in tokenRef.SemanticColor[k])) {
-                    throw new Error(`Missing semantic color reference: ${ref.current!.reference}`);
-                }
-                tokenRef.SemanticColor[k][ref.key] = {
-                    ...tokenRef.SemanticColor[k][ref.current!.reference]
-                };
-            });
+            if (FormDivider?.DIVIDER_COLORS) {
+                const dividerFallback = FormDivider.DIVIDER_COLORS[targetRef] ??
+                    FormDivider.DIVIDER_COLORS.dark ??
+                    FormDivider.DIVIDER_COLORS.darker ??
+                    Object.values(FormDivider.DIVIDER_COLORS)[0];
+                FormDivider.DIVIDER_COLORS[ref.key] = dividerFallback;
+            }
+
+            if (tokenRef.Shadow) {
+                Object.keys(tokenRef.Shadow).forEach(k => {
+                    const shadowGroup = tokenRef.Shadow[k];
+                    if (shadowGroup) {
+                        const shadowFallback = shadowGroup[targetRef] ??
+                            shadowGroup.dark ??
+                            shadowGroup.darker ??
+                            shadowGroup.midnight ??
+                            shadowGroup.onyx ??
+                            Object.values(shadowGroup)[0];
+                        shadowGroup[ref.key] = shadowFallback;
+                    }
+                });
+            }
+
+            if (tokenRef.SemanticColor) {
+                Object.keys(tokenRef.SemanticColor).forEach(k => {
+                    const colorGroup = tokenRef.SemanticColor[k];
+                    if (colorGroup) {
+                        const colorFallback = colorGroup[targetRef] ??
+                            colorGroup.dark ??
+                            colorGroup.darker ??
+                            colorGroup.midnight ??
+                            colorGroup.onyx ??
+                            Object.values(colorGroup)[0];
+                        colorGroup[ref.key] = { ...colorFallback };
+                    }
+                });
+            }
         } catch (e) {
-            console.error("Failed to register custom theme key, falling back", e);
-            ref.current = null; // force fallback path below
+            console.error("Failed to register custom theme keys:", e);
         }
     }
 
-    if (update) {
-        AppearanceManager.setShouldSyncAppearanceSettings(false);
+    if (update && AppearanceManager?.updateTheme) {
+        try {
+            AppearanceManager.setShouldSyncAppearanceSettings?.(false);
+        } catch {}
 
         const targetTheme = ref.current != null ? ref.key : ref.lastSetDiscordTheme;
 
-        // This is the actual crash site: a raw call into native code with no
-        // guard. Wrap it so a native-side rejection can't take the whole
-        // bridge/thread down — fall back to the last known-good Discord theme.
         try {
             AppearanceManager.updateTheme(targetTheme);
         } catch (e) {

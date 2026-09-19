@@ -10,21 +10,15 @@ async function initializeShiggyCord() {
     // Make 'freeze' and 'seal' do nothing
     Object.freeze = Object.seal = Object;
 
-    await require("@metro/internals/caches").initMetroCache();
+    try {
+      await require("@metro/internals/caches").initMetroCache();
+    } catch (e) {
+      console.warn("Failed to initialize metro cache, proceeding anyway:", e);
+    }
     require(".").default();
   } catch (e) {
-    const { ClientInfoManager } = require("@lib/api/native/modules");
     const stack = e instanceof Error ? e.stack : undefined;
-
-    console.log(stack ?? e?.toString?.() ?? e);
-    alert(
-      [
-        "Failed to load ShiggyCord!\n",
-        `Build Number: ${ClientInfoManager.getConstants().Build}`,
-        `ShiggyCord: ${version}`,
-        stack || e?.toString?.(),
-      ].join("\n"),
-    );
+    console.error("Failed to load ShiggyCord:", stack ?? e?.toString?.() ?? e);
   }
 }
 
@@ -109,13 +103,29 @@ if (typeof window.__r === "undefined") {
     }
 
     const startDiscord = async () => {
-      await initializeShiggyCord();
+      try {
+        await initializeShiggyCord();
+      } catch (err) {
+        console.error("Critical error during initializeShiggyCord:", err);
+      } finally {
+        for (const unpatch of unpatches) {
+          try {
+            unpatch();
+          } catch {}
+        }
+        unpatches.length = 0;
 
-      for (const unpatch of unpatches) unpatch();
-      unpatches.length = 0;
-
-      originalRequire(0);
-      resumeDeferred();
+        try {
+          originalRequire(0);
+        } catch (e) {
+          console.error("originalRequire(0) error:", e);
+        }
+        try {
+          resumeDeferred();
+        } catch (e) {
+          console.error("resumeDeferred error:", e);
+        }
+      }
     };
 
     startDiscord();

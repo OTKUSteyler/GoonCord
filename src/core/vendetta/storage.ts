@@ -13,8 +13,9 @@ export function createProxy(target: any = {}): { proxy: any; emitter: Emitter; }
 
     function createProxy(target: any, path: string[]): any {
         return new Proxy(target, {
-            get(target, prop: string) {
+            get(target, prop: string | symbol) {
                 if ((prop as unknown) === emitterSymbol) return emitter;
+                if (typeof prop === "symbol") return target[prop];
 
                 const newPath = [...path, prop];
                 const value: any = target[prop];
@@ -82,25 +83,45 @@ export function createProxy(target: any = {}): { proxy: any; emitter: Emitter; }
 }
 
 export function useProxy<T>(storage: T): T {
-    const emitter = (storage as any)?.[emitterSymbol] as Emitter;
-    if (!emitter) throw new Error("storage?.[emitterSymbol] is undefined");
-
     const [, forceUpdate] = React.useReducer(n => ~n, 0);
 
     React.useEffect(() => {
-        const listener: EmitterListener = (event: EmitterEvent, data: EmitterListenerData) => {
-            if (event === "DEL" && data.value === storage) return;
-            forceUpdate();
+        if (!storage) return;
+
+        let unsubscribe: (() => void) | undefined;
+
+        const attach = (s: any) => {
+            const emitter = s?.[emitterSymbol] as Emitter | undefined;
+            if (!emitter) return;
+
+            const listener: EmitterListener = (event: EmitterEvent, data: EmitterListenerData) => {
+                if (event === "DEL" && data.value === s) return;
+                forceUpdate();
+            };
+
+            emitter.on("SET", listener);
+            emitter.on("DEL", listener);
+
+            unsubscribe = () => {
+                emitter.off("SET", listener);
+                emitter.off("DEL", listener);
+            };
         };
 
-        emitter.on("SET", listener);
-        emitter.on("DEL", listener);
+        const currentEmitter = (storage as any)?.[emitterSymbol];
+        if (currentEmitter) {
+            attach(storage);
+        } else if (typeof (storage as any)?.[syncAwaitSymbol] === "function") {
+            (storage as any)[syncAwaitSymbol](() => {
+                attach(storage);
+                forceUpdate();
+            });
+        }
 
         return () => {
-            emitter.off("SET", listener);
-            emitter.off("DEL", listener);
+            unsubscribe?.();
         };
-    }, []);
+    }, [storage]);
 
     return storage;
 }
@@ -135,6 +156,7 @@ export function wrapSync<T extends Promise<any>>(store: T): Awaited<T> {
         ),
         get(target, prop, recv) {
             if (prop === syncAwaitSymbol) return awaitInit;
+            if (prop === emitterSymbol) return (awaited as any)?.[emitterSymbol];
             return Reflect.get(awaited ?? target, prop, recv);
         },
     });
