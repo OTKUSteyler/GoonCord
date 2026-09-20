@@ -33,10 +33,10 @@ function buildInitCache() {
 
 /** @internal */
 export async function initMetroCache() {
-    if (!await fileExists(BUNNY_METRO_CACHE_PATH)) return void buildInitCache();
-    const rawCache = await readFile(BUNNY_METRO_CACHE_PATH);
-
     try {
+        if (!await fileExists(BUNNY_METRO_CACHE_PATH)) return void buildInitCache();
+        const rawCache = await readFile(BUNNY_METRO_CACHE_PATH);
+
         _metroCache = JSON.parse(rawCache);
         if (_metroCache._v !== CACHE_VERSION) {
             _metroCache = null!;

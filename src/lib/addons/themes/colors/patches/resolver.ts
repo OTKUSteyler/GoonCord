@@ -2,14 +2,11 @@ import { _colorRef } from "@lib/addons/themes/colors/updater";
 import { NativeThemeModule } from "@lib/api/native/modules";
 import { before, instead } from "@lib/api/patcher";
 import { findByProps } from "@metro";
+import { byMutableProp } from "@metro/filters";
+import { createLazyModule } from "@metro/lazy";
 import chroma from "chroma-js";
 
-const tokenReference = findByProps("SemanticColor");
-const themeTypes = findByProps("ThemeTypes")?.ThemeTypes;
-
-const origRawColor = { ...tokenReference.RawColor };
-const origDarker = themeTypes.DARKER as string;
-const origLight = themeTypes.LIGHT as string;
+const isThemeModule = createLazyModule(byMutableProp("isThemeDark"));
 
 const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
     "BG_BACKDROP": "BACKGROUND_FLOATING",
@@ -24,41 +21,57 @@ const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
     "BG_SURFACE_RAISED": "BACKGROUND_MOBILE_PRIMARY"
 };
 
+const alphaCache = new Map<string, string>();
+let alphaCacheKey: string | null = null;
+
+function cachedAlphaHex(hex: string, opacity: number): string {
+    if (alphaCacheKey !== _colorRef.key) {
+        alphaCache.clear();
+        alphaCacheKey = _colorRef.key;
+    }
+    const cacheKey = `${hex}|${opacity}`;
+    let result = alphaCache.get(cacheKey);
+    if (result === undefined) {
+        result = chroma(hex).alpha(opacity).hex();
+        alphaCache.set(cacheKey, result);
+    }
+    return result;
+}
+
 export default function patchDefinitionAndResolver() {
-    const callback = ([theme]: any[]) => theme === _colorRef.key ? [_colorRef.current!.reference] : void 0;
+    const tokenReference = findByProps("SemanticColor");
+    if (!tokenReference) return () => {};
 
-    Object.defineProperty(themeTypes, "DARKER", {
-        configurable: true,
-        enumerable: true,
-        get: () => _colorRef.current?.reference === "darker" ? _colorRef.key : origDarker,
-    });
-    Object.defineProperty(themeTypes, "LIGHT", {
-        configurable: true,
-        enumerable: true,
-        get: () => _colorRef.current?.reference === "light" ? _colorRef.key : origLight,
-    });
+    const origRawColor = { ...tokenReference.RawColor };
 
-    Object.keys(tokenReference.RawColor).forEach(key => {
-        Object.defineProperty(tokenReference.RawColor, key, {
-            configurable: true,
-            enumerable: true,
-            get: () => {
-                const ret = _colorRef.current?.raw[key];
-                if (ret) return ret;
-                return origRawColor[key];
-            }
+    const callback = ([theme]: any[]) => theme === _colorRef.key ? [_colorRef.current?.reference ?? "dark"] : void 0;
+
+    if (tokenReference.RawColor) {
+        Object.keys(tokenReference.RawColor).forEach(key => {
+            Object.defineProperty(tokenReference.RawColor, key, {
+                configurable: true,
+                enumerable: true,
+                get: () => {
+                    const ret = _colorRef.current?.raw[key];
+                    return ret || origRawColor[key];
+                }
+            });
         });
-    });
+    }
+
+    const resolverTarget = tokenReference.default?.meta ?? tokenReference.default?.internal ?? tokenReference.default;
 
     const unpatches = [
+        before("isThemeDark", isThemeModule, callback),
+        before("isThemeLight", isThemeModule, callback),
         before("updateTheme", NativeThemeModule, callback),
-        instead("resolveSemanticColor", tokenReference.default.meta ?? tokenReference.default.internal, (args: any[], orig: any) => {
+        resolverTarget ? instead("resolveSemanticColor", resolverTarget, (args: any[], orig: any) => {
             if (!_colorRef.current) return orig(...args);
             if (args[0] !== _colorRef.key) return orig(...args);
 
             args[0] = _colorRef.current.reference;
 
-            const [name, colorDef] = extractInfo(_colorRef.current!.reference, args[1]);
+            const [name, colorDef] = extractInfo(_colorRef.current.reference, args[1], tokenReference);
 
             let semanticDef = _colorRef.current.semantic[name];
             if (!semanticDef && _colorRef.current.spec === 2 && name in SEMANTIC_FALLBACK_MAP) {
@@ -66,42 +79,40 @@ export default function patchDefinitionAndResolver() {
             }
 
             if (semanticDef?.value) {
-                return semanticDef.opacity === 1
-                    ? semanticDef.value
-                    : chroma(semanticDef.value).alpha(semanticDef.opacity).hex();
+                if (semanticDef.opacity === 1) return semanticDef.value;
+                return cachedAlphaHex(semanticDef.value, semanticDef.opacity);
             }
 
-            const rawValue = _colorRef.current.raw[colorDef.raw];
-            if (rawValue) {
-                // Set opacity if needed
-                return colorDef.opacity === 1 ? rawValue : chroma(rawValue).alpha(colorDef.opacity).hex();
+            if (colorDef?.raw) {
+                const rawValue = _colorRef.current.raw[colorDef.raw];
+                if (rawValue) {
+                    return colorDef.opacity === 1 ? rawValue : cachedAlphaHex(rawValue, colorDef.opacity);
+                }
             }
 
-            // Fallback to default
             return orig(...args);
-        }),
+        }) : () => {},
         () => {
-            Object.defineProperty(themeTypes, "DARKER", {
-                configurable: true, writable: true, value: origDarker
-            });
-            Object.defineProperty(themeTypes, "LIGHT", {
-                configurable: true, writable: true, value: origLight
-            });
-            Object.defineProperty(tokenReference, "RawColor", {
-                configurable: true,
-                writable: true,
-                value: origRawColor
-            });
+            if (tokenReference.RawColor) {
+                Object.defineProperty(tokenReference, "RawColor", {
+                    configurable: true,
+                    writable: true,
+                    value: origRawColor
+                });
+            }
         }
     ];
 
     return () => unpatches.forEach(p => p());
 }
 
-function extractInfo(themeName: string, colorObj: any): [name: string, colorDef: any] {
+function extractInfo(themeName: string, colorObj: any, tokenReference: any): [name: string, colorDef: any] {
+    if (!colorObj || typeof colorObj !== "object") return ["", null];
     // @ts-ignore - assigning to extractInfo._sym
     const propName = colorObj[extractInfo._sym ??= Object.getOwnPropertySymbols(colorObj)[0]];
-    const colorDef = tokenReference.SemanticColor[propName];
+    const colorDef = tokenReference?.SemanticColor?.[propName];
+    if (!colorDef) return [propName, null];
 
-    return [propName, colorDef[themeName]];
+    const targetDef = colorDef[themeName] ?? colorDef.darker ?? colorDef.dark ?? colorDef.midnight ?? colorDef.onyx ?? Object.values(colorDef)[0];
+    return [propName, targetDef];
 }
