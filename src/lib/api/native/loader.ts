@@ -55,7 +55,7 @@ function polyfillVendettaLoaderIdentity() {
         };
     } else {
         loader = {
-            name: pyonLoaderIdentity.loaderName,
+            name: pyonLoaderIdentity.loader?.name ?? "Unknown",
             features: {} as Record<string, any>,
         };
     }
@@ -98,6 +98,19 @@ function polyfillVendettaLoaderIdentity() {
     return loader as VendettaLoaderIdentity;
 }
 
+/**
+ * The current __PYON_LOADER__ payload has moved to a nested shape:
+ * { bundle: { revision }, loader: { name, version, initConfig, constants, modules } }
+ * It no longer carries the old flat Vendetta-era fields (loaderName, loaderVersion,
+ * hasThemeSupport, fontPatch, storedTheme, sysColors). The functions below read the
+ * new nested fields where a native equivalent exists. Where the native side no longer
+ * sends a capability flag at all (theme/font/sysColors support), we treat the modern
+ * Pyon-based loader as always supporting them — consistent with getThemeFilePath()
+ * below, which already unconditionally returns a fixed path for Pyon with no support
+ * check. If the native/injector side does expose real capability flags somewhere else
+ * in the payload (e.g. under loader.constants), swap the hardcoded `true` for that.
+ */
+
 export function getLoaderIdentity() {
     if (isPyonLoader()) {
         return pyonLoaderIdentity;
@@ -122,7 +135,7 @@ export function getVendettaLoaderIdentity(): VendettaLoaderIdentity | null {
 getVendettaLoaderIdentity();
 
 export function getLoaderName() {
-    if (isPyonLoader()) return pyonLoaderIdentity.loaderName;
+    if (isPyonLoader()) return pyonLoaderIdentity.loader?.name ?? "Unknown";
     else if (isRa1nLoader()) return rainLoaderIdentity.loadername;
     else if (isVendettaLoader()) return vendettaLoaderIdentity.name;
     else if (isShiggyLoader()) return shiggyLoaderIdentity.loaderName;
@@ -131,7 +144,7 @@ export function getLoaderName() {
 }
 
 export function getLoaderVersion(): string | null {
-    if (isPyonLoader()) return pyonLoaderIdentity.loaderVersion;
+    if (isPyonLoader()) return pyonLoaderIdentity.loader?.version ?? null;
     else if (isRa1nLoader()) return rainLoaderIdentity.loaderVersion;
     else if (isShiggyLoader()) return shiggyLoaderIdentity.loaderVersion;
     return null;
@@ -151,7 +164,9 @@ export function isLoaderConfigSupported() {
 
 export function isThemeSupported() {
     if (isPyonLoader()) {
-        return pyonLoaderIdentity.hasThemeSupport;
+        // No hasThemeSupport flag on the current payload shape; the modern
+        // Pyon-based loader always supports themes (see getThemeFilePath()).
+        return true;
     } else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.themes != null;
     } else if (isRa1nLoader()) {
@@ -165,7 +180,11 @@ export function isThemeSupported() {
 
 export function getStoredTheme(): VdThemeInfo | null {
     if (isPyonLoader()) {
-        return pyonLoaderIdentity.storedTheme;
+        // No storedTheme field on the current payload shape; the currently
+        // selected theme is tracked client-side in the `themes` MMKV store
+        // instead (see @lib/addons/themes -> getCurrentTheme()), which
+        // getThemeFromLoader() already falls back to when this returns null.
+        return null;
     } else if (isVendettaLoader()) {
         const themeProp = vendettaLoaderIdentity!!.features.themes?.prop;
         if (!themeProp) return null;
@@ -236,7 +255,8 @@ export function isSysColorsSupported() {
 export function getSysColors() {
     if (!isSysColorsSupported()) return null;
     if (isPyonLoader()) {
-        return pyonLoaderIdentity.sysColors;
+        // No sysColors field on the current payload shape.
+        return null;
     } else if (isVendettaLoader()) {
         return vendettaLoaderIdentity!!.features.syscolors!!.prop;
     }
@@ -257,7 +277,9 @@ export function getLoaderConfigPath() {
 }
 
 export function isFontSupported() {
-    if (isPyonLoader()) return pyonLoaderIdentity.fontPatch === 2;
+    // No fontPatch field on the current payload shape; the modern
+    // Pyon-based loader always supports fonts.
+    if (isPyonLoader()) return true;
     else if (isShiggyLoader()) return shiggyLoaderIdentity.fontPatch === 2;
 
     return false;
