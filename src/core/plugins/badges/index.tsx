@@ -1,6 +1,7 @@
+
 import { after } from "@lib/api/patcher";
 import { onJsxCreate } from "@lib/api/react/jsx";
-import { findByName, findByProps } from "@metro";
+import { findByName, findByNameLazy, findByProps } from "@metro";
 import { defineCorePlugin } from "..";
 import { FluxDispatcher } from "@metro/common";
 
@@ -15,6 +16,9 @@ const TAG = "[bunny.badges]";
 const PREFIX = "rain-";
 const RETRY_MS = 3000;
 const MAX_RETRIES = 40; // ~2 minutes; modules may not be loaded at startup
+
+// The original lookup that worked before; always tried first.
+const useBadgesLazy = findByNameLazy("useBadges", false);
 
 const badgesCache = new Map<string, Badge[]>();
 const badgeProps = new Map<string, Record<string, any>>();
@@ -76,6 +80,9 @@ function scanModules(): Target | null {
 
 function resolveUseBadges(): Target | null {
     const attempts: Array<() => Target | null> = [
+        () => typeof (useBadgesLazy as any)?.default === "function"
+            ? { target: useBadgesLazy, key: "default", via: "findByNameLazy (original)" }
+            : null,
         () => {
             const m = findByName("useBadges", false);
             return m && typeof m.default === "function"
