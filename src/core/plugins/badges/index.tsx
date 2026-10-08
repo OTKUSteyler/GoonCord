@@ -1,47 +1,70 @@
 import { after } from "@lib/api/patcher";
 import { onJsxCreate } from "@lib/api/react/jsx";
-import { findByNameLazy } from "@metro";
+import { findByName, findByProps } from "@metro";
 import { defineCorePlugin } from "..";
 import { FluxDispatcher } from "@metro/common";
 
-interface Badge {
-    label: string;
-    url: string;
-}
+interface Badge { label: string; url: string }
+interface UserBadgeData { roles?: string[]; custom?: Badge[] }
+interface BadgeData { [userId: string]: UserBadgeData }
+interface RoleData { label: string; url: string }
+interface RolesData { [roleName: string]: RoleData }
+interface EquicordBadge { tooltip: string; badge: string }
 
-interface UserBadgeData {
-    roles?: string[];
-    custom?: Badge[];
-}
-
-interface BadgeData {
-    [userId: string]: UserBadgeData;
-}
-
-interface RoleData {
-    label: string;
-    url: string;
-}
-
-interface RolesData {
-    [roleName: string]: RoleData;
-}
-
-interface EquicordBadge {
-    tooltip: string;
-    badge: string;
-}
-
-const useBadgesModule = findByNameLazy("useBadges", false);
+const TAG = "[bunny.badges]";
+const PREFIX = "rain-";
 
 const badgesCache = new Map<string, Badge[]>();
 const badgeProps = new Map<string, Record<string, any>>();
 const pendingRequests = new Set<string>();
 
+// Resolve the useBadges hook through several strategies, since the
+// module layout changes between Discord builds.
+function resolveUseBadges(): { target: any; key: string } | null {
+    const attempts: Array<[string, () => { target: any; key: string } | null]> = [
+        ["name/default", () => {
+            const m = findByName("useBadges", false);
+            return m && typeof m.default === "function" ? { target: m, key: "default" } : null;
+        }],
+        ["name/direct", () => {
+            const m = findByName("useBadges");
+            return typeof m === "function" ? { target: { useBadges: m }, key: "useBadges" } : null;
+        }],
+        ["props", () => {
+            const m = findByProps("useBadges");
+            return m && typeof m.useBadges === "function" ? { target: m, key: "useBadges" } : null;
+        }],
+    ];
+
+    for (const [label, attempt] of attempts) {
+        try {
+            const found = attempt();
+            if (found) {
+                console.log(`${TAG} resolved useBadges via ${label}`);
+                return found;
+            }
+        } catch { /* try next */ }
+    }
+    return null;
+}
+
+const getUserId = (arg: any): string | undefined =>
+    typeof arg === "string" ? arg : arg?.userId ?? arg?.id;
+
+const safeFetchJson = async <T,>(url: string, fallback: T): Promise<T> => {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return fallback;
+        return (await res.json()) as T;
+    } catch {
+        return fallback;
+    }
+};
+
 export default defineCorePlugin({
     manifest: {
         id: "bunny.badges",
-        version: "1.2.0",
+        version: "1.2.1",
         type: "plugin",
         spec: 3,
         main: "",
@@ -53,113 +76,59 @@ export default defineCorePlugin({
     },
 
     start() {
-        onJsxCreate("ProfileBadge", (component, ret) => {
-            if (ret.props.id?.startsWith("rain-")) {
-                const cachedProps = badgeProps.get(ret.props.id);
-                if (cachedProps) {
-                    ret.props.source = cachedProps.source;
-                    ret.props.label = cachedProps.label;
-                    ret.props.id = cachedProps.id;
-                }
-            }
-        });
-
-        onJsxCreate("RenderedBadge", (component, ret) => {
-            if (ret.props.id?.startsWith("rain-")) {
-                const cachedProps = badgeProps.get(ret.props.id);
-                if (cachedProps) {
-                    Object.assign(ret.props, cachedProps);
-                }
-            }
-        });
-
-        // Small helper so one failing/optional source can't take down the others.
-        const safeFetchJson = async <T,>(url: string, fallback: T): Promise<T> => {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) return fallback;
-                return (await res.json()) as T;
-            } catch {
-                return fallback;
-            }
+        const applyCached = (ret: any) => {
+            const cachedProps = badgeProps.get(ret.props.id);
+            if (cachedProps) Object.assign(ret.props, cachedProps);
         };
+
+        // Component names may change between builds; keep both hooks.
+        onJsxCreate("ProfileBadge", (_c, ret) => {
+            if (ret.props?.id?.startsWith(PREFIX)) applyCached(ret);
+        });
+        onJsxCreate("RenderedBadge", (_c, ret) => {
+            if (ret.props?.id?.startsWith(PREFIX)) applyCached(ret);
+        });
 
         const fetchAndProcessBadges = async (userId: string) => {
             if (pendingRequests.has(userId)) return;
             pendingRequests.add(userId);
 
             try {
-                const [
-                    goonBadgesData,
-                    goonRolesData,
-                    rainBadgesData,
-                    rainRolesData,
-                    equicordData,
-                ] = await Promise.all([
-                    safeFetchJson<BadgeData>(
-                        "https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json",
-                        {}
-                    ),
-                    safeFetchJson<RolesData>(
-                        "https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json",
-                        {}
-                    ),
-                    safeFetchJson<BadgeData>(
-                        "https://codeberg.org/raincord/badges/raw/branch/main/badges.json",
-                        {}
-                    ),
-                    safeFetchJson<RolesData>(
-                        "https://codeberg.org/raincord/badges/raw/branch/main/assets/roles/roles.json",
-                        {}
-                    ),
-                    safeFetchJson<Record<string, EquicordBadge[]>>(
-                        "https://badge.equicord.org/badges.json",
-                        {}
-                    ),
-                ]);
+                const [goonBadges, goonRoles, rainBadges, rainRoles, equicord] =
+                    await Promise.all([
+                        safeFetchJson<BadgeData>("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/badges.json", {}),
+                        safeFetchJson<RolesData>("https://codeberg.org/chocomint-chan/GoonCord_Badges/raw/branch/main/assets/roles/roles.json", {}),
+                        safeFetchJson<BadgeData>("https://codeberg.org/raincord/badges/raw/branch/main/badges.json", {}),
+                        safeFetchJson<RolesData>("https://codeberg.org/raincord/badges/raw/branch/main/assets/roles/roles.json", {}),
+                        safeFetchJson<Record<string, EquicordBadge[]>>("https://badge.equicord.org/badges.json", {}),
+                    ]);
 
                 const allBadges: Badge[] = [];
 
-                // GoonCord and raincord badge/role sets are keyed independently,
-                // so each source is resolved against its own roles file.
-                const badgeSources: Array<{ badges: BadgeData; roles: RolesData }> = [
-                    { badges: goonBadgesData, roles: goonRolesData },
-                    { badges: rainBadgesData, roles: rainRolesData },
-                ];
+                for (const { badges, roles } of [
+                    { badges: goonBadges, roles: goonRoles },
+                    { badges: rainBadges, roles: rainRoles },
+                ]) {
+                    const data = badges[userId];
+                    if (!data) continue;
 
-                badgeSources.forEach(({ badges, roles }) => {
-                    const userBadgeData = badges[userId];
-                    if (!userBadgeData) return;
-
-                    // process role badges
-                    userBadgeData.roles?.forEach(roleName => {
-                        const roleData = roles[roleName];
-                        if (roleData) {
-                            allBadges.push({
-                                label: roleData.label,
-                                url: roleData.url,
-                            });
-                        }
+                    data.roles?.forEach(name => {
+                        const role = roles[name];
+                        if (role) allBadges.push({ label: role.label, url: role.url });
                     });
+                    if (data.custom) allBadges.push(...data.custom);
+                }
 
-                    // process custom badges
-                    if (userBadgeData.custom) {
-                        allBadges.push(...userBadgeData.custom);
-                    }
-                });
-
-                // process equicord badges
-                const equicordUserBadges = equicordData[userId] ?? [];
-                equicordUserBadges.forEach(b => {
-                    allBadges.push({ label: b.tooltip, url: b.badge });
-                });
+                (equicord[userId] ?? []).forEach(b =>
+                    allBadges.push({ label: b.tooltip, url: b.badge })
+                );
 
                 badgesCache.set(userId, allBadges);
 
                 allBadges.forEach((badge, i) => {
-                    const badgeId = `rain-${userId}-${i}`;
-                    badgeProps.set(badgeId, {
-                        id: badgeId,
+                    const id = `${PREFIX}${userId}-${i}`;
+                    badgeProps.set(id, {
+                        id,
                         source: { uri: badge.url },
                         label: badge.label,
                         userId,
@@ -168,34 +137,37 @@ export default defineCorePlugin({
 
                 FluxDispatcher.dispatch({ type: "USER_UPDATE", user: { id: userId } });
             } catch (err) {
-                console.error("[bunny.badges] Failed to fetch/process badges:", err);
+                console.error(`${TAG} Failed to fetch/process badges:`, err);
             } finally {
                 pendingRequests.delete(userId);
             }
         };
 
-        return after("default", useBadgesModule, ([user], result) => {
-            if (!user) return;
+        const resolved = resolveUseBadges();
+        if (!resolved) {
+            console.error(`${TAG} could not find useBadges; Discord likely changed it again`);
+            return;
+        }
 
-            const userId = user.userId;
+        return after(resolved.key, resolved.target, (args: any[], result: any) => {
+            const userId = getUserId(args?.[0]);
+            if (!userId || !Array.isArray(result)) return;
+
             const cached = badgesCache.get(userId);
-
             if (!cached) {
-                if (!pendingRequests.has(userId)) {
-                    fetchAndProcessBadges(userId);
-                }
+                fetchAndProcessBadges(userId);
                 return;
             }
 
-            cached.forEach((badge, i) => {
-                const badgeId = `rain-${userId}-${i}`;
+            // Drop anything we injected previously (memoized results), then re-add.
+            const base = result.filter(b => !String(b?.id ?? "").startsWith(PREFIX));
+            const mine = cached.map((badge, i) => ({
+                id: `${PREFIX}${userId}-${i}`,
+                description: badge.label,
+                icon: " _",
+            }));
 
-                result.unshift({
-                    id: badgeId,
-                    description: badge.label,
-                    icon: " _",
-                });
-            });
+            return [...mine, ...base];
         });
     },
 });
