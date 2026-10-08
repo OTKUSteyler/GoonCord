@@ -1,5 +1,4 @@
-
-import { after } from "@lib/api/patcher";
+import { after, before } from "@lib/api/patcher";
 import { onJsxCreate } from "@lib/api/react/jsx";
 import { findByName, findByNameLazy, findByProps } from "@metro";
 import { defineCorePlugin } from "..";
@@ -278,9 +277,96 @@ export default defineCorePlugin({
             }, RETRY_MS);
         }
 
+        // ---- Component-level injection (works even if the hook is gone) ----
+        // Watches every component whose name contains "badge". If one receives
+        // an array prop that looks like a badge list, our badges are prepended.
+        const nameCache = new WeakMap<object, string>();
+        const nameOf = (t: any): string => {
+            if (!t || (typeof t !== "function" && typeof t !== "object")) return "";
+            let n = nameCache.get(t);
+            if (n === undefined) {
+                n = t.displayName || t.name || t.type?.displayName || t.type?.name
+                    || t.render?.displayName || t.render?.name || "";
+                nameCache.set(t, n);
+            }
+            return n;
+        };
+        const looksLikeBadge = (x: any) =>
+            x && typeof x === "object" && typeof x.id === "string" &&
+            ("description" in x || "icon" in x || "label" in x || "tooltip" in x);
+        const userIdOf = (p: any): string | undefined =>
+            p.userId ?? p.user?.id ?? p.user?.userId ?? p.profile?.userId ??
+            p.profile?.user?.id ?? p.profileUser?.id;
+
+        const logged = new Set<string>();
+        const unpatchJsx: Array<() => void> = [];
+        const jsxRuntime: any = safe(() => findByProps("jsx", "jsxs"));
+
+        if (!jsxRuntime) {
+            console.warn(`${TAG} jsx runtime not found; component-level injection disabled`);
+        } else {
+            for (const key of ["jsx", "jsxs"]) {
+                if (typeof jsxRuntime[key] !== "function") continue;
+
+                unpatchJsx.push(before(key, jsxRuntime, (args: any[]) => {
+                    const props = args[1];
+                    if (!props || typeof props !== "object") return;
+
+                    const name = nameOf(args[0]);
+                    if (!name || !/badge/i.test(name)) return;
+
+                    // Per-badge component receiving one of our injected ids.
+                    if (typeof props.id === "string" && props.id.startsWith(PREFIX)) {
+                        const c = badgeProps.get(props.id);
+                        if (c) args[1] = { ...props, ...c };
+                        return args;
+                    }
+
+                    const listKey = Object.keys(props).find(k =>
+                        Array.isArray(props[k]) &&
+                        (props[k].some(looksLikeBadge) || (/badge/i.test(k) && props[k].length === 0))
+                    );
+                    const userId = userIdOf(props);
+
+                    if (logged.size < 30 && !logged.has(name)) {
+                        logged.add(name);
+                        console.log(
+                            `${TAG} component ${name} props=[${Object.keys(props).join(",")}] ` +
+                            `listKey=${listKey ?? "none"} userId=${userId ?? "none"}`
+                        );
+                    }
+
+                    if (!listKey || !userId) return;
+
+                    const cached = badgesCache.get(userId);
+                    if (!cached) {
+                        fetchAndProcessBadges(userId);
+                        return;
+                    }
+
+                    const base = (props[listKey] as any[]).filter(
+                        b => !String(b?.id ?? "").startsWith(PREFIX)
+                    );
+                    const mine = cached.map((badge, i) => ({
+                        id: `${PREFIX}${userId}-${i}`,
+                        description: badge.label,
+                        label: badge.label,
+                        tooltip: badge.label,
+                        icon: " _",
+                        source: { uri: badge.url },
+                        userId,
+                    }));
+
+                    args[1] = { ...props, [listKey]: [...mine, ...base] };
+                    return args;
+                }));
+            }
+        }
+
         return () => {
             if (timer) clearInterval(timer);
             unpatch?.();
+            unpatchJsx.forEach(u => u());
         };
     },
 });
