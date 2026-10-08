@@ -33,6 +33,7 @@ function scanModules(): Target | null {
     if (!registry) return null;
 
     let sourceMatch: Target | null = null;
+    const candidates: string[] = [];
 
     for (const id in registry) {
         const mod = registry[id];
@@ -47,12 +48,20 @@ function scanModules(): Target | null {
 
             const name: string = fn.name || key;
 
-            // Strongest signal: a hook named like use...Badge...
-            if (/^use\w*badge/i.test(name) || /^use\w*badge/i.test(key)) {
-                return { target: ex, key, via: `scan/name (module ${id}, ${key})` };
+            // Skip obvious styling hooks (e.g. useBadgeTextVariant).
+            if (/variant|text|color|style|theme|size|font/i.test(name)) continue;
+
+            if (/^use/i.test(name) && (/badge/i.test(name) || /badge/i.test(key))) {
+                const src = safe(() => Function.prototype.toString.call(fn)) ?? "";
+                candidates.push(`${id}:${key}(${src.length}b)`);
+
+                // A name match only counts if the source also builds badge-like objects.
+                if (src.length < 12000 && /description/.test(src) && /icon/.test(src)) {
+                    return { target: ex, key, via: `scan/name+source (module ${id}, ${key})` };
+                }
             }
 
-            // Weaker signal: small function whose source builds badge objects.
+            // Fallback: a small use... function whose source builds badge objects.
             if (!sourceMatch && /^use/i.test(name)) {
                 const src = safe(() => Function.prototype.toString.call(fn)) ?? "";
                 if (src.length < 8000 && /badge/i.test(src) && /description/.test(src) && /icon/.test(src)) {
@@ -61,6 +70,7 @@ function scanModules(): Target | null {
             }
         }
     }
+    if (!sourceMatch) console.log(`${TAG} scan candidates (rejected): ${candidates.join(", ") || "none"}`);
     return sourceMatch;
 }
 
