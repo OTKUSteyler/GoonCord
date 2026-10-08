@@ -313,7 +313,15 @@ export default defineCorePlugin({
                     if (!props || typeof props !== "object") return;
 
                     const name = nameOf(args[0]);
-                    if (!name || !/badge/i.test(name)) return;
+                    if (!name) return;
+                    if (!/badge/i.test(name)) {
+                        // Discovery only: log profile-related components once each.
+                        if (/profile/i.test(name) && logged.size < 60 && !logged.has(name)) {
+                            logged.add(name);
+                            console.log(`${TAG} profile component ${name} props=[${Object.keys(props).join(",")}]`);
+                        }
+                        return;
+                    }
 
                     // Per-badge component receiving one of our injected ids.
                     if (typeof props.id === "string" && props.id.startsWith(PREFIX)) {
@@ -328,7 +336,7 @@ export default defineCorePlugin({
                     );
                     const userId = userIdOf(props);
 
-                    if (logged.size < 30 && !logged.has(name)) {
+                    if (logged.size < 90 && !logged.has(name)) {
                         logged.add(name);
                         console.log(
                             `${TAG} component ${name} props=[${Object.keys(props).join(",")}] ` +
